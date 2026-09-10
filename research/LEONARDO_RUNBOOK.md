@@ -4,6 +4,70 @@ Companion to the infrastructure brief linked in `EXPERIMENT_BED.md`. This file t
 into a tactic and an ordered task list for our sweep. Facility figures should be
 re-checked with `cindata` and `sinfo` before the first job.
 
+## Verified on the machine, 10 Sep 2026
+
+Read-only checks run as `vstajkic` from a login node, a data mover, and one 3-minute
+`boost_qos_dbg` GPU job.
+
+Account and budget
+- Project account `AIFAC_P02_954`, user `vstajkic`, QoS available: `boost_qos_dbg`,
+  `boost_qos_lprod`, `boost_qos_bprod`, `normal`. No DCGP budget (`saldo --dcgp` fails,
+  DCGP `--test-only` fails), so transcoding must happen off-site or on `lrd_all_serial`.
+- Budget: 40,000 local hours, valid **24 Aug to 24 Oct 2026**, 0 consumed. Billing is
+  `T x nodes x R x 32` with R = fraction of the node reserved, so 4 GPUs = a full node =
+  32 local h per node-hour = **8 local h per GPU-hour**. 40,000 local h = 5,000 A100-hours.
+- Linearization: monthly quota is total / months = 19,672 local h (~2,460 GPU-h) per
+  calendar month at full priority; beyond that jobs still run at reduced priority. Nothing
+  is lost, but the account **expires 24 Oct**. Everything must be spent in ~6 weeks.
+
+Storage (all empty at check time)
+- `$HOME=/leonardo/home/userexternal/vstajkic` (50 GB, backup currently inactive)
+- `$WORK=/leonardo_work/AIFAC_P02_954` (1 TB, shared with the project, group-writable)
+- `$FAST=/leonardo_scratch/fast/AIFAC_P02_954` (1 TB NVMe, shared with the project)
+- `$SCRATCH=/leonardo_scratch/large/userexternal/vstajkic` (docs: -/20 TB, 40-day cleanup)
+- `$PUBLIC` 50 GB; `$DRES` not defined. Login `TMPDIR=/scratch_local` (14 TB shared SSD,
+  unquotaed, cleaned on misuse). Booster `TMPDIR=/tmp` = 10 GB tmpfs.
+
+Network
+- Login node: internet works (`huggingface.co` returned 200), but a 600 CPU-second
+  per-process limit; fine for rsync/curl, not for long hashing or transcoding.
+- Compute node: DNS resolves, TCP is refused immediately ("Network is unreachable"). No
+  egress, and a stray online call fails fast rather than hanging.
+- Data mover `data.leonardo.cineca.it`: restricted shell. `rclone` (v1.66) and `wget` are
+  permitted as commands; `ls`, `rsync`, arbitrary shells are not. rsync/scp work as
+  transfer protocols against it. Pull from Hetzner therefore goes through
+  `ssh dm rclone copy hetzner:... /leonardo_scratch/...` or `wget`.
+
+Hardware and software
+- Booster node: 4 x A100-SXM 64 GB, 32 cores (8 per GPU), 502 GB RAM, driver 535.274,
+  **CUDA 12.2 driver**, 4 InfiniBand HCAs (`ib0..ib3`). Use `cu121` PyTorch wheels; `cu124`
+  builds need driver >= 550 and will not load without the compat package.
+- SingularityPRO 4.3.1 on login and compute nodes (`singularity`, not `apptainer`).
+- Modules: `profile/deeplrn` exposes `cuda/12.1|12.2|12.3|12.6`, `nvhpc`, and
+  `cineca-ai/4.3.0` = Python 3.11.6, torch 2.2.0 (cu121), transformers 4.38.0, accelerate
+  0.27.0, deepspeed 0.13.2, flash_attn 2.5.5; no `av`, no `decord`. Too old for
+  Qwen3-VL (needs transformers >= 4.57), so build our own env or container; the module is
+  useful only as a source of a working flash-attn build recipe for this driver.
+- System python3 is 3.6.8; do not use it.
+
+Queue
+- Partitions: `boost_usr_prod` 24 h max, `boost_qos_lprod` 4 days / max 8 nodes,
+  `boost_qos_dbg` 30 min / max 2 jobs, `lrd_all_serial` 4 h, 4 cores, budget-free.
+- Load at check time: 4,227 nodes running, 5,503 pending in `normal` (30,849 nodes
+  requested), 220 pending in `lprod`. `sbatch --test-only` estimated **19 Sep** start for
+  every shape from 1 node/24 h to 8 nodes/4 days. The dbg job started immediately.
+- No Booster maintenance reservation before 24 Oct (DCGP maintenance 15-18 Oct only).
+
+Consequences for the plan
+- The binding constraint is the calendar, not disk. 5,000 GPU-h at 32 GPUs is 6.5 days of
+  wall time, but the estimated queue wait is ~9 days per submission. Submit early, keep
+  jobs in the queue continuously (chain with `--dependency`), and prefer several 1 to 2
+  node jobs over one 8-node job for the sweep: same billing, more scheduler slots.
+- Ask CINECA for a project extension now; the 24 Oct end date leaves no room for a
+  second attempt at Phase 3.
+- Use the login node for downloads (models, LIBERO, SSv2) directly; only the DROID push
+  needs Hetzner and the data mover.
+
 ## The tactic in six rules
 
 1. **Space is a tiering problem, not a size problem.** Three areas, three roles.
