@@ -53,6 +53,27 @@ the repo; README badge says Apache-2.0, pyproject says MIT).
 Per-run reference costs (35% MFU, 2x overhead): pretrain B=8 50k steps ~180; LIBERO ft 120k
 ~210, 30k ~55; SimplerEnv 30k B=32 ~210; LIBERO eval ~10, LIBERO-Plus ~40-60.
 
+## Infrastructure prerequisites (Leonardo)
+
+A separate engineering brief, "VLA-JEPA on Leonardo" (Claude artifact
+https://claude.ai/code/artifact/8533f648-d965-4c0d-ad61-70ee6c141d3a, reviewed 8-9 Sep 2026,
+shared within the org), covers the facility side. Its conclusions that gate this bed:
+
+- Resume is broken as shipped: `_save_checkpoint` writes weights only
+  (`train_jevla_cotrain.py:209-217`), `_load_checkpoint` calls `accelerator.load_state` on a
+  directory never written. Any multi-day run needs `save_state` + dataloader state +
+  `completed_steps`, a USR1 trap and `--requeue`. This is Phase 0 step one.
+- Leonardo Booster A100s are 64 GB, not 80 GB. Budget the frozen Anchor teacher (~4.4 GB
+  bf16 plus activations) against per-device batch 8 with gradient checkpointing.
+- Re-encode DROID to the consumed resolution (2 views, 256 px, short GOP, LeRobot v2.1)
+  before transfer: 1.7 TB RLDS -> 200-400 GB. Stage to `$SCRATCH`; no network from GPU nodes.
+- Run shape: `boost_qos_lprod`, 8 nodes x 4 GPUs, per-device 8, global 256, 4-day chunks.
+- One correction to the brief: it warns about an EMA-updated JEPA target encoder. In
+  VLA-JEPA the V-JEPA 2 encoder is a plain `AutoModel.from_pretrained` called under
+  `torch.no_grad()` (`VLA_JEPA.py:81,191-192`), no EMA, so nothing extra to checkpoint
+  there. It is also never set to `.eval()` or `requires_grad_(False)`; harmless today, but
+  do both explicitly when touching the encoder axis.
+
 ## Third-party code policy
 
 Port small pieces with attribution (see `THIRD_PARTY_NOTICES.md`). No submodules: the only
