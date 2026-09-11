@@ -73,7 +73,15 @@ So the constant-z regime is established during pretraining, not by the LIBERO fi
 on these clips the pretrained predictor beats copy-last by only 0.012. LIBERO fine-tuning makes
 the per-sample part of z relatively *larger* (||mean|| 681 vs deviation 296, cosine 0.82) and
 the predictor's amplification of z 3x stronger (43k vs 691), yet the world model still reads
-none of it: the action encoder projects z onto its mean direction and the residual is lost.
+none of it. Decomposing z inside the predictor (128 samples,
+`research/results/released_libero/libero_spatial_decomposition.md`): the batch-constant part
+goes 1,186 -> 43,676 through `action_encoder` (37x) and the per-sample residual 289 -> 2,897
+(10x). The residual therefore survives the linear encoder, and is even 4x the norm of the
+embedded video states, but it is a 6.6% perturbation of a token whose norm is dominated by the
+constant. After the predictor's LayerNorms that token is essentially the normalised constant
+direction, and the trained blocks are insensitive to the small angular change: the loss moves by
+1e-4 when the residual is removed. The channel is not projected away by a single matrix; it is
+drowned by a massive shared activation and ignored downstream.
 
 Open: base vs `noz` on LIBERO / LIBERO-Plus (does the loss help as a regulariser?), and whether
 leak-free targets or a real bottleneck put sample information into the channel (`perframe`,
