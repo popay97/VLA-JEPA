@@ -127,8 +127,11 @@ def main():
 
         base_vlm = AutoModelForImageTextToText.from_pretrained(args.base_vlm, dtype=torch.bfloat16).to(device).eval()
 
-    wm = {k: [] for k in ("z_true", "z_zeros", "z_noise", "z_shuffle", "z_tokshuffle", "scene_cut", "copy_last")}
+    wm = {k: [] for k in ("z_true", "z_zeros", "z_noise", "z_shuffle", "z_shuffle_other_task", "z_batchmean", "z_globalmean", "z_tokshuffle", "scene_cut", "copy_last")}
+    paired = {"shuffle_minus_true": [], "batchmean_minus_true": [], "globalmean_minus_true": []}
     per_transition_wm = []
+    z_running_sum, z_running_n = None, 0
+    contrib = {"z_embed_norm": [], "state_embed_norm": []}
     Z, ZRAW, EMB, PRE, ACT, MAE = [], [], [], [], [], []
     cka_sums, cka_n = None, 0
 
@@ -142,13 +145,41 @@ def main():
         def wm_loss(zz, ii, gg):
             return model.world_model_loss(zz, ii, gg).item()
 
-        wm["z_true"].append(wm_loss(z, inp, gt))
+        def wm_loss_per_sample(zz, ii, gg):
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                pr = model.vj_predictor(ii, zz).float()
+            return (pr - gg.float()).abs().flatten(1).mean(1)  # [B]
+
+        l_true_ps = wm_loss_per_sample(z, inp, gt)
+        wm["z_true"].append(l_true_ps.mean().item())
         wm["z_zeros"].append(wm_loss(torch.zeros_like(z), inp, gt))
         std = z.float().std(dim=(0, 1), keepdim=True)
         wm["z_noise"].append(wm_loss((torch.randn_like(z.float()) * std).to(z.dtype), inp, gt))
+        # constant-z controls: batch mean, and running dataset mean (from previous batches)
+        z_bm = z.float().mean(0, keepdim=True).expand_as(z).to(z.dtype)
+        l_bm_ps = wm_loss_per_sample(z_bm, inp, gt)
+        wm["z_batchmean"].append(l_bm_ps.mean().item())
+        paired["batchmean_minus_true"].extend((l_bm_ps - l_true_ps).cpu().tolist())
+        if z_running_n > 0:
+            z_gm = (z_running_sum / z_running_n).unsqueeze(0).expand_as(z).to(z.dtype)
+            l_gm_ps = wm_loss_per_sample(z_gm, inp, gt)
+            wm["z_globalmean"].append(l_gm_ps.mean().item())
+            paired["globalmean_minus_true"].extend((l_gm_ps - l_true_ps).cpu().tolist())
+        z_running_sum = z.float().sum(0) if z_running_sum is None else z_running_sum + z.float().sum(0)
+        z_running_n += B
+        # how much of the predictor input comes from z versus the context states
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            contrib["z_embed_norm"].append(model.vj_predictor.action_encoder(z).float().norm(dim=-1).mean().item())
+            contrib["state_embed_norm"].append(model.vj_predictor.predictor_embed(inp).float().norm(dim=-1).mean().item())
         if B >= 2:
             perm = torch.as_tensor(permute_rows(B, rng), device=device)
-            wm["z_shuffle"].append(wm_loss(z[perm], inp, gt))
+            l_sh_ps = wm_loss_per_sample(z[perm], inp, gt)
+            wm["z_shuffle"].append(l_sh_ps.mean().item())
+            paired["shuffle_minus_true"].extend((l_sh_ps - l_true_ps).cpu().tolist())
+            langs = [ex["lang"] for ex in examples]
+            other = [i for i in range(B) if langs[perm[i].item()] != langs[i]]
+            if other:
+                wm["z_shuffle_other_task"].append(l_sh_ps[other].mean().item())
             wm["scene_cut"].append(wm_loss(z, inp, gt[perm]))
         tperm = torch.as_tensor(rng.permutation(z.shape[1]), device=device)
         wm["z_tokshuffle"].append(wm_loss(z[:, tperm], inp, gt))
@@ -209,9 +240,13 @@ def main():
         "encoder_type": model.target_encoder.encoder_type,
         "bottleneck": model.latent_bottleneck.kind,
         "num_transitions": int(model.num_transitions),
-        "world_model": {k: summarize(v) for k, v in wm.items()},
+        "world_model": {k: summarize(v) for k, v in wm.items() if v},
         "world_model_per_transition_true_z": np.stack(per_transition_wm).mean(0).tolist(),
     }
+    results["world_model"]["paired_per_sample"] = {
+        k: {"mean": float(np.mean(v)), "std": float(np.std(v)), "abs_mean": float(np.mean(np.abs(v))), "n": len(v)} for k, v in paired.items() if v
+    }
+    results["world_model"]["predictor_input_norms"] = {k: float(np.mean(v)) for k, v in contrib.items()}
     results["world_model"]["z_effect"] = {
         "zeros_minus_true": results["world_model"]["z_zeros"]["mean"] - results["world_model"]["z_true"]["mean"],
         "shuffle_minus_true": results["world_model"]["z_shuffle"]["mean"] - results["world_model"]["z_true"]["mean"],
@@ -230,6 +265,12 @@ def main():
         "ridge_r2_xyz_only": kfold_ridge_r2(zp, ACT[:, :, :3].reshape(N, -1)),
         "cca_top8": cca_correlations(z_flat, act_flat, k=8, pca_dim=args.pca_dim),
         "z_token_std_mean": float(Z.std(0).mean()),
+        # geometry: how large is the per-sample variation of z relative to its mean vector?
+        "z_mean_vector_norm": float(np.linalg.norm(Z.mean(0), axis=-1).mean()),
+        "z_deviation_norm_mean": float(np.linalg.norm(Z - Z.mean(0, keepdims=True), axis=-1).mean()),
+        "z_pairwise_cosine_mean": float(_pairwise_cosine(Z.reshape(N, -1))),
+        "z_raw_pairwise_cosine_mean": float(_pairwise_cosine(ZRAW.reshape(N, -1))),
+        "embodied_pairwise_cosine_mean": float(_pairwise_cosine(EMB)),
         "z_effective_rank": float(np.exp(-(lambda p: (p * np.log(p + 1e-12)).sum())(
             (lambda s: s / s.sum())(np.linalg.svd(z_flat - z_flat.mean(0), compute_uv=False) ** 2)))),
     }
@@ -262,21 +303,37 @@ def main():
     print(f"[diag] wrote {args.out}/results.json")
 
 
+def _pairwise_cosine(x: np.ndarray, max_n: int = 512) -> float:
+    x = x[:max_n].astype(np.float64)
+    x = x / np.maximum(np.linalg.norm(x, axis=1, keepdims=True), 1e-8)
+    c = x @ x.T
+    n = c.shape[0]
+    return float((c.sum() - np.trace(c)) / max(n * (n - 1), 1))
+
+
 def write_markdown(r, path):
     wm = r["world_model"]
     lines = [f"# Diagnostics: `{r['checkpoint']}`", "",
              f"encoder `{r['encoder_type']}`, bottleneck `{r['bottleneck']}`, {r['num_samples']} samples, {r['num_transitions']} transitions", "",
              "## World-model L1 (lower is better)", "", "| condition | mean | std |", "|---|---|---|"]
-    for k in ("z_true", "z_zeros", "z_noise", "z_shuffle", "z_tokshuffle", "scene_cut", "copy_last"):
-        if k in wm and wm[k]["n"]:
+    for k in ("z_true", "z_zeros", "z_noise", "z_shuffle", "z_shuffle_other_task", "z_batchmean", "z_globalmean", "z_tokshuffle", "scene_cut", "copy_last"):
+        if k in wm and isinstance(wm[k], dict) and wm[k].get("n"):
             lines.append(f"| {k} | {wm[k]['mean']:.4f} | {wm[k]['std']:.4f} |")
     e = wm["z_effect"]
     lines += ["", f"z effect: zeros-true {e['zeros_minus_true']:+.4f}, shuffle-true {e['shuffle_minus_true']:+.4f}, copy_last-true {e['copy_last_minus_true']:+.4f}", ""]
+    pp = wm.get("paired_per_sample", {})
+    for k, v in pp.items():
+        lines.append(f"- paired per-sample {k}: mean {v['mean']:+.4f}, |diff| mean {v['abs_mean']:.4f}, std {v['std']:.4f} (n={v['n']})")
+    nm = wm.get("predictor_input_norms", {})
+    if nm:
+        lines.append(f"- predictor input norms: action_encoder(z) {nm['z_embed_norm']:.2f} vs predictor_embed(states) {nm['state_embed_norm']:.2f}")
+    lines.append("")
     za = r["z_to_actions"]
     lines += ["## z -> action chunk", "",
               f"- ridge R^2 (PCA {za['pca_dim']}, evr {za['pca_evr']:.2f}): **{za['ridge_r2_pca']['r2']:.3f}**; full-dim {za['ridge_r2_full']['r2']:.3f}; xyz only {za['ridge_r2_xyz_only']['r2']:.3f}",
               f"- CCA top-8: {', '.join(f'{c:.2f}' for c in za['cca_top8'])}",
-              f"- effective rank of z: {za['z_effective_rank']:.1f}",
+              f"- effective rank of z: {za['z_effective_rank']:.1f}; ||mean z|| {za['z_mean_vector_norm']:.1f} vs mean ||z - mean z|| {za['z_deviation_norm_mean']:.1f}; "
+              f"pairwise cosine z {za['z_pairwise_cosine_mean']:.3f}, embodied {za['embodied_pairwise_cosine_mean']:.3f}",
               f"- embodied tokens -> actions R^2: {r['embodied_to_actions']['ridge_r2_pca']['r2']:.3f}; pre-action hidden -> actions R^2: {r['pre_action_to_actions']['ridge_r2_pca']['r2']:.3f}", ""]
     dp = r["direction_probe"]
     lines += ["## Direction probe (6-way)", "",
