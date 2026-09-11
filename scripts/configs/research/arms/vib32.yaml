@@ -1,0 +1,7 @@
+# Variational information bottleneck on z, d=32, beta=1e-3 (KL logged as metric/vib_kl_raw).
+run_id: vib32
+framework:
+  latent_action:
+    bottleneck: vib
+    bottleneck_dim: 32
+    vib_beta: 0.001

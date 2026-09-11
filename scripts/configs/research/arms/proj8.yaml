@@ -1,0 +1,6 @@
+# Low-rank bottleneck on z: Linear(2048 -> 8) -> Linear(8 -> 2048).
+run_id: proj8
+framework:
+  latent_action:
+    bottleneck: lowrank
+    bottleneck_dim: 8

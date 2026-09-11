@@ -1,0 +1,5 @@
+# LayerNorm (no affine) on z: removes scale/offset freedom only.
+run_id: ln
+framework:
+  latent_action:
+    bottleneck: layernorm

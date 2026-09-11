@@ -86,6 +86,9 @@ class baseframework(PreTrainedModel):
         config = dict_to_namespace(model_config)
         model_config = config
         model_config.trainer.pretrained_checkpoint = None
+        # the Anchor-Align teacher is training-only and is stripped from exported weights
+        if "anchor_align" in model_config.framework:
+            model_config.framework.anchor_align.enable_anchor = False
         # FrameworkModel = cls(config=model_config, **kwargs) # TODO find cls by config
         FrameworkModel = build_framework(cfg=model_config)
         # set for action un-norm

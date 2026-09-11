@@ -10,6 +10,7 @@ import re
 import json
 import numpy as np
 import torch
+import torch.distributed as dist
 
 from accelerate.logging import get_logger
 
@@ -20,6 +21,17 @@ logger = get_logger(__name__)
 #
 
 # utils/cli_parser.py
+
+
+def _rank0() -> bool:
+    """True on the main process, also when torch.distributed is not initialised."""
+    return (not dist.is_available()) or (not dist.is_initialized()) or dist.get_rank() == 0
+
+
+def sum_losses(output_dict: dict):
+    """Sum every entry of a framework output dict except `metric/*` diagnostics
+    (logged but never back-propagated)."""
+    return sum(v for k, v in output_dict.items() if not k.startswith("metric/"))
 
 
 def normalize_dotlist_args(args):
@@ -83,6 +95,10 @@ def build_param_lr_groups(model, cfg):
             print(f"⚠️ freeze module path does not exist: {freeze_path}")
             continue
 
+    # parameters that can never receive gradients (frozen target encoder, anchor teacher) are
+    # excluded so DeepSpeed does not allocate fp32 master copies and AdamW moments for them
+    frozen_params.update(id(p) for p in model.parameters() if not p.requires_grad)
+
     for module_name, lr in lr_cfg.items():
         if module_name == "base":
             continue
@@ -97,7 +113,7 @@ def build_param_lr_groups(model, cfg):
                 param_groups.append({"params": params, "lr": lr, "name": module_name})
                 used_params.update(id(p) for p in params)
         except AttributeError:
-            ReferenceError(f"⚠️ module path `{module_name}` not found in vla")
+            print(f"⚠️ module path `{module_name}` not found in vla")
 
     # assign base learning rate to the remaining unused parameters (exclude frozen ones)
     other_params = [p for p in model.parameters() if id(p) not in used_params and id(p) not in frozen_params]
@@ -209,23 +225,41 @@ class TrainerUtils:
         return num_params, num_trainable_params
 
     @staticmethod
-    def load_pretrained_backbones(model, checkpoint_path=None, reload_modules=None):
+    def load_pretrained_backbones(
+        model, checkpoint_path=None, reload_modules=None, skip_load_modules=None, allow_missing_prefixes=None
+    ):
         """
         load checkpoint:
         - if reload_modules is set, load by path part
         - otherwise → load the entire model parameters (overwrite model)
 
-        return:
-            replace, loaded_modules: list of module paths that successfully loaded parameters; if global load, then ["<full_model>"]
+        skip_load_modules: comma-separated module paths whose checkpoint weights are dropped
+            before loading, so those modules keep their fresh initialisation (e.g. re-init the
+            predictor when the target encoder changes). Also accepted as missing.
+        allow_missing_prefixes: state-dict key prefixes that may be absent from the checkpoint
+            (new research modules). Defaults to `model.NEW_MODULE_PREFIXES` if defined.
+            Any other missing key, or any unexpected key, is an error.
         """
         if not checkpoint_path:
             return []
-        if dist.get_rank() == 0:
+        if _rank0():
             print(f"📦 loading checkpoint: {checkpoint_path}")
         try:
             checkpoint = torch.load(checkpoint_path, map_location="cpu")
         except Exception as e:
             raise RuntimeError(f"❌ loading checkpoint failed: {e}")
+
+        skip_prefixes = []
+        if skip_load_modules:
+            skip_prefixes = [p.strip().rstrip(".") + "." for p in str(skip_load_modules).split(",") if p.strip()]
+        if allow_missing_prefixes is None:
+            allow_missing_prefixes = list(getattr(model, "NEW_MODULE_PREFIXES", []))
+        allow_missing_prefixes = list(allow_missing_prefixes) + skip_prefixes
+        if skip_prefixes:
+            before = len(checkpoint)
+            checkpoint = {k: v for k, v in checkpoint.items() if not any(k.startswith(p) for p in skip_prefixes)}
+            if _rank0():
+                print(f"⏭️  skipped {before - len(checkpoint)} checkpoint tensors under {skip_prefixes} (fresh init kept)")
 
         loaded_modules = []
 
@@ -241,21 +275,37 @@ class TrainerUtils:
                     sub_state_dict = {k[len(prefix) :]: v for k, v in checkpoint.items() if k.startswith(prefix)}
                     if sub_state_dict:
                         module.load_state_dict(sub_state_dict, strict=True)
-                        if dist.get_rank() == 0:
+                        if _rank0():
                             print(f"✅ parameters loaded to module '{path}'")
                         loaded_modules.append(path)
                     else:
                         print(f"⚠️ parameters not found in checkpoint '{path}'")
                 except AttributeError:
                     print(f"❌ cannot find module path: {path}")
-        else:  # full load
+        else:  # full load, tolerant only towards declared new/skipped modules
             try:
-                model.load_state_dict(checkpoint, strict=True)
-                if dist.get_rank() == 0:
-                    print("✅ loaded <full_model> model parameters")
-                loaded_modules = ["<full_model>"]
+                result = model.load_state_dict(checkpoint, strict=False)
             except Exception as e:
                 raise RuntimeError(f"❌ loading full model failed: {e}")
+            missing = [k for k in result.missing_keys if not any(k.startswith(p) for p in allow_missing_prefixes)]
+            tolerated = [k for k in result.missing_keys if any(k.startswith(p) for p in allow_missing_prefixes)]
+            unexpected = list(result.unexpected_keys)
+            if _rank0():
+                if tolerated:
+                    groups = sorted({k.split(".")[0] for k in tolerated})
+                    print(f"ℹ️  {len(tolerated)} tensors kept at init (not in checkpoint): {groups}")
+                if missing:
+                    print(f"❌ missing keys (first 10): {missing[:10]}")
+                if unexpected:
+                    print(f"❌ unexpected keys (first 10): {unexpected[:10]}")
+            if missing or unexpected:
+                raise RuntimeError(
+                    f"❌ checkpoint/model mismatch: {len(missing)} missing, {len(unexpected)} unexpected keys. "
+                    f"Use trainer.skip_load_modules for intentionally re-initialised modules."
+                )
+            if _rank0():
+                print("✅ loaded <full_model> model parameters")
+            loaded_modules = ["<full_model>"]
         return model
 
     @staticmethod

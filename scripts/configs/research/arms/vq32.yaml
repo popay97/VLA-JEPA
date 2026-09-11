@@ -1,0 +1,7 @@
+# Vector-quantised z, 512 codes in R^32 (perplexity logged as metric/vq_perplexity).
+run_id: vq32
+framework:
+  latent_action:
+    bottleneck: vq
+    bottleneck_dim: 32
+    vq_codebook_size: 512

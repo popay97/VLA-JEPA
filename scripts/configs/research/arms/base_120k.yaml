@@ -1,0 +1,6 @@
+# Exact paper LIBERO recipe: 120k steps, 20k warmup, global batch 64 (run on 8 GPUs / 2 nodes).
+run_id: base_120k
+trainer:
+  max_train_steps: 120000
+  num_warmup_steps: 20000
+  save_interval: 10000

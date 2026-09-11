@@ -1,0 +1,11 @@
+# Leak-free V-JEPA 2: each frame encoded alone (duplicated into a 2-frame tubelet), states
+# layer-normed as in V-JEPA2-AC. 8 frames -> 8 states -> 7 transitions (uses <|action_0..6|>,
+# 56 latent tokens). Predictor tensors are geometry-independent (sincos pos-embed, mask is
+# rebuilt), so the pretrained predictor weights load unchanged. To re-initialise it instead:
+#   --trainer.skip_load_modules vj_predictor
+run_id: perframe
+framework:
+  vj2_model:
+    encoder_type: vjepa2_perframe
+    normalize_targets: true
+    state_stride: 1

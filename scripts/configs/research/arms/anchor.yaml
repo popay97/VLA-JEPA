@@ -1,0 +1,7 @@
+# Representation anchoring only (Dalal et al.), lambda 0.1, all layers, teacher = base VLM.
+run_id: anchor
+framework:
+  anchor_align:
+    enable_anchor: true
+    anchor_weight: 0.1
+    teacher_source: base_vlm

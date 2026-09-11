@@ -1,0 +1,8 @@
+# Anchor towards the *pretrained VLA-JEPA* VLM (what the checkpoint already learned) rather
+# than the base Qwen3-VL. Separates "keep VLM knowledge" from "keep pretraining knowledge".
+run_id: anchor_ptteacher
+framework:
+  anchor_align:
+    enable_anchor: true
+    anchor_weight: 0.1
+    teacher_source: pretrained_checkpoint

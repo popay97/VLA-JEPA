@@ -1,0 +1,2 @@
+# Paper recipe shortened to 30k steps on 1 node (calibration arm). Nothing else changes.
+run_id: base_30k

@@ -20,6 +20,7 @@ fastparquet==2024.11.0
 av==12.3.0
 numpydantic==1.6.9
 deepspeed==0.16.9
+torchdata>=0.8.0
 qwen-vl-utils
 omegaconf
 numpy==1.26.4

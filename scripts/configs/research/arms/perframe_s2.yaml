@@ -1,0 +1,8 @@
+# Per-frame V-JEPA 2 with stride 2: 4 states / 3 transitions, same token layout as the
+# baseline so the pretrained predictor weights are kept.
+run_id: perframe_s2
+framework:
+  vj2_model:
+    encoder_type: vjepa2_perframe
+    normalize_targets: true
+    state_stride: 2

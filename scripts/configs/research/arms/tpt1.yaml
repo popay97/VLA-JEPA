@@ -1,0 +1,6 @@
+# One latent token per transition instead of 8 (wave 2): 3 latent tokens total. Only the
+# predictor's attention mask changes, pretrained predictor weights load unchanged.
+run_id: tpt1
+framework:
+  vj2_model:
+    num_action_tokens_per_timestep: 1

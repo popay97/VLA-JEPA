@@ -41,6 +41,8 @@ from starVLA.dataloader import build_dataloader
 from starVLA.training.trainer_utils.trainer_tools import normalize_dotlist_args
 from starVLA.model.framework import build_framework
 from starVLA.training.trainer_utils.trainer_tools import TrainerUtils
+from starVLA.training.trainer_utils.checkpointing import ResumableCheckpointing
+from starVLA.training.trainer_utils.trainer_tools import sum_losses
 
 deepspeed_plugin = DeepSpeedPlugin()
 accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin)
@@ -120,7 +122,7 @@ def setup_optimizer_and_scheduler(model, cfg) -> Tuple[torch.optim.Optimizer, to
     return optimizer, lr_scheduler
 
 
-class VLAMTrainer(TrainerUtils):
+class VLAMTrainer(ResumableCheckpointing, TrainerUtils):
     def __init__(self, cfg, model, vla_train_dataloader, video_train_dataloader, optimizer, lr_scheduler, accelerator):
         self.config = cfg
         self.model = model
@@ -134,6 +136,9 @@ class VLAMTrainer(TrainerUtils):
 
         # training status tracking
         self.completed_steps = 0
+        self.vla_epoch_count = 0
+        self.vlm_epoch_count = 0
+        self.eval_examples = None
         self.total_batch_size = self._calculate_total_batch_size()
 
     def prepare_training(self):
@@ -147,7 +152,12 @@ class VLAMTrainer(TrainerUtils):
             reload_modules = (
                 self.config.trainer.reload_modules if hasattr(self.config.trainer, "reload_modules") else None
             )
-            self.model = self.load_pretrained_backbones(self.model, pretrained_checkpoint, reload_modules=reload_modules)
+            skip_load_modules = self.config.trainer.get("skip_load_modules", None)
+            self.model = self.load_pretrained_backbones(
+                self.model, pretrained_checkpoint, reload_modules=reload_modules, skip_load_modules=skip_load_modules
+            )
+            if hasattr(self.model, "on_pretrained_loaded"):
+                self.model.on_pretrained_loaded()
 
         # freeze parameters
         freeze_modules = (
@@ -160,6 +170,10 @@ class VLAMTrainer(TrainerUtils):
         #  print trainable parameters of the model
         self.print_trainable_parameters(self.model)
 
+        self.accelerator.dataloader_config.use_stateful_dataloader = bool(
+            self.config.trainer.get("use_stateful_dataloader", True)
+        )
+
         # initialize distributed training components
         self.model, self.optimizer, self.vla_train_dataloader, self.video_train_dataloader = (
             self.setup_distributed_training(
@@ -169,6 +183,11 @@ class VLAMTrainer(TrainerUtils):
 
         #self._init_wandb()
         self._init_checkpointing()
+        self.init_resumable(
+            dataloaders=[self.vla_train_dataloader, self.video_train_dataloader],
+            epoch_counter_names=["vla_epoch_count", "vlm_epoch_count"],
+        )
+        self.maybe_resume()
 
     def _calculate_total_batch_size(self):
         """calculate global batch size"""
@@ -190,40 +209,14 @@ class VLAMTrainer(TrainerUtils):
             )
 
     def _init_checkpointing(self):
-        """initialize checkpoint directory"""
+        """initialize checkpoint directory (resume itself is handled by ResumableCheckpointing)"""
         self.checkpoint_dir = os.path.join(self.config.output_dir, "checkpoints")
         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
-        pretrained_checkpoint = getattr(self.config.trainer, "pretrained_checkpoint", None)
-        is_resume = getattr(self.config.trainer, "is_resume", False)
-
-        # resume training state
-        if pretrained_checkpoint and is_resume:
-            self._load_checkpoint(self.config.resume_from_checkpoint)
-
-    def _load_checkpoint(self, checkpoint_path):
-        """load checkpoint"""
-        self.accelerator.load_state(checkpoint_path)
-        self.accelerator.print(f"Resumed from checkpoint: {checkpoint_path}")
-
     def _save_checkpoint(self):
-        """save current training state"""
-
-        if accelerator.is_main_process:
-
-            checkpoint_path = os.path.join(self.checkpoint_dir, f"steps_{self.completed_steps}")
-            # save model state
-            state_dict = self.accelerator.get_state_dict(self.model)
-            torch.save(state_dict, checkpoint_path + "_pytorch_model.pt")
-
-            # save training metadata
-            summary_data = {
-                "steps": self.completed_steps,
-            }
-            with open(os.path.join(self.config.output_dir, "summary.jsonl"), "a") as f:
-                f.write(json.dumps(summary_data) + "\n")
-            self.accelerator.print(f"✅ Checkpoint saved at {checkpoint_path}")
-        accelerator.wait_for_everyone()
+        """milestone: weights-only export + full resumable training state"""
+        self.export_weights()
+        self.save_training_state(reason="interval")
 
     def _log_metrics(self, metrics):
         """record training metrics"""
@@ -266,9 +259,6 @@ class VLAMTrainer(TrainerUtils):
         try:
             batch_vla = next(self.vla_iter)
         except StopIteration:
-            # check if there is self.vla_epoch_count
-            if not hasattr(self, "vla_epoch_count"):
-                self.vla_epoch_count = 0
             self.vla_iter, self.vla_epoch_count = TrainerUtils._reset_dataloader(
                 self.vla_train_dataloader, self.vla_epoch_count
             )
@@ -277,8 +267,6 @@ class VLAMTrainer(TrainerUtils):
         try:
             batch_vlm = next(self.vlm_iter)
         except StopIteration:
-            if not hasattr(self, "vlm_epoch_count"):
-                self.vlm_epoch_count = 0
             self.vlm_iter, self.vlm_epoch_count = self._reset_dataloader(self.video_train_dataloader, self.vlm_epoch_count)
             batch_vlm = next(self.vlm_iter)
 
@@ -291,11 +279,16 @@ class VLAMTrainer(TrainerUtils):
 
         # prepare data iterators
         self._create_data_iterators()
+        self.eval_examples, _ = self._get_next_batch()
 
         # create progress bar
         progress_bar = tqdm(
-            range(self.config.trainer.max_train_steps), disable=not self.accelerator.is_local_main_process
+            range(self.config.trainer.max_train_steps),
+            initial=self.completed_steps,
+            disable=not self.accelerator.is_local_main_process,
         )
+
+        stopped_early = False
 
         # main training loop
         while self.completed_steps < self.config.trainer.max_train_steps:
@@ -335,17 +328,29 @@ class VLAMTrainer(TrainerUtils):
             if self.completed_steps % self.config.trainer.save_interval == 0 and self.completed_steps > 0:
                 self._save_checkpoint()
 
-                dist.barrier()  # ensure all processes are synchronized, avoid timeout
-
             # check termination condition
             if self.completed_steps >= self.config.trainer.max_train_steps:
                 break
 
+            # wall-clock / sentinel / signal driven state save (Slurm requeue support)
+            save_now, stop_now = self.check_stop_and_save()
+            if save_now:
+                self.save_training_state(reason="stop" if stop_now else "time")
+            if stop_now:
+                self.accelerator.print(f"[trainer] stop requested; state saved at step {self.completed_steps}, exiting for requeue")
+                stopped_early = True
+                break
+
+        if stopped_early:
+            if self.accelerator.is_main_process:
+                self.writer.flush()
+                self.writer.close()
+            self.accelerator.wait_for_everyone()
+            return
+
         # training end processing
         self._finalize_training()
 
-        # execute evaluation step
-    
     def eval_action_model(self, step_metrics: dict = None) -> float:
         """
         Evaluate the model on the given dataset using the specified metric function.
@@ -357,7 +362,7 @@ class VLAMTrainer(TrainerUtils):
 
         if self.accelerator.is_main_process:
 
-            examples, vlm_data = self._get_next_batch()
+            examples = self.eval_examples if self.eval_examples is not None else self._get_next_batch()[0]
 
             score = 0.0
             num_samples = len(examples)
@@ -365,10 +370,11 @@ class VLAMTrainer(TrainerUtils):
             batch_images = [example["image"] for example in examples]
             instructions = [example["lang"] for example in examples]  # [B, str]
             actions = [example["action"] for example in examples]  # label
+            state = [example["state"] for example in examples] if "state" in examples[0] else None
 
             # Predict actions using the model
             output_dict = self.model.predict_action(
-                batch_images=batch_images, instructions=instructions, use_ddim=True, num_ddim_steps=20
+                batch_images=batch_images, instructions=instructions, state=state, use_ddim=True, num_ddim_steps=20
             )
 
             normalized_actions = output_dict["normalized_actions"]  # B, T, D
@@ -404,12 +410,14 @@ class VLAMTrainer(TrainerUtils):
         with self.accelerator.accumulate(self.model):
             self.optimizer.zero_grad()
 
-            # TODO 再出错，mock 小模型查看原因
+            # Two optimizer updates per iteration (VLA batch, then video batch), as upstream.
+            # The LR scheduler is stepped ONCE per iteration: upstream stepped it twice, which
+            # halved the effective warmup/cosine horizon relative to `max_train_steps`.
             # VLA task forward propagation
             with torch.autocast("cuda", dtype=torch.bfloat16):
                 output_dict = self.model.forward(batch_vla)
-                total_loss = sum(output_dict.values())
-            
+                total_loss = sum_losses(output_dict)
+
             self.accelerator.backward(total_loss)
             # gradient clipping
             if self.config.trainer.gradient_clipping is not None:
@@ -417,12 +425,11 @@ class VLAMTrainer(TrainerUtils):
 
             # optimizer step
             self.optimizer.step()
-            self.lr_scheduler.step()
 
             self.optimizer.zero_grad()
             with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                 vlm_output = self.model.forward(batch_vlm)
-                vlm_loss = sum(vlm_output.values())
+                vlm_loss = sum_losses(vlm_output)
 
             self.accelerator.backward(vlm_loss)
             # gradient clipping
@@ -431,47 +438,23 @@ class VLAMTrainer(TrainerUtils):
 
             # optimizer step
             self.optimizer.step()
-            self.lr_scheduler.step()
-
-            """
-            self.optimizer.zero_grad()
-            #dist.barrier()  # @DEBUG
-            #pass
-            #============= Step 2
-            # VLM task forward propagation
-            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                vlm_output = self.model.forward(batch_vlm)
-                vlm_loss = sum(vlm_output.values())
-
-            self.accelerator.backward(vlm_loss)
-
-            #pass
-
-            #dist.barrier() #@DEBUG
-            # gradient clipping
-            if self.config.trainer.gradient_clipping is not None:
-                self.accelerator.clip_grad_norm_(self.model.parameters(), self.config.trainer.gradient_clipping)
-
-            # optimizer step
-            self.optimizer.step()
-            self.lr_scheduler.step()
-            """
+            if self.accelerator.sync_gradients:
+                self.lr_scheduler.step()
 
         for k, v in output_dict.items():
-            log_dict[f"vla_{k}"] = v.item()
+            log_dict[f"vla_{k}"] = float(v.item())
         for k, v in vlm_output.items():
-            log_dict[f"vlm_{k}"] = v.item()
+            log_dict[f"vlm_{k}"] = float(v.item())
+        log_dict["loss"] = float(total_loss.item()) + float(vlm_loss.item())
         return log_dict
 
     def _finalize_training(self):
         """training end processing"""
-        # save final model
+        # save final model (weights only, teacher stripped) and mark the run complete
+        self.export_weights(subdir="final_model")
+        self.mark_done()
         if self.accelerator.is_main_process:
-            final_checkpoint = os.path.join(self.config.output_dir, "final_model")
-            os.makedirs(final_checkpoint, exist_ok=True)
-            state_dict = self.accelerator.get_state_dict(self.model)
-            torch.save(state_dict, os.path.join(final_checkpoint, "pytorch_model.pt"))
-            logger.info(f"Training complete. Final model saved at {final_checkpoint}")
+            logger.info(f"Training complete. Final model saved at {os.path.join(self.config.output_dir, 'final_model')}")
             self.writer.flush()
             self.writer.close()
 
@@ -524,10 +507,13 @@ def main(cfg) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_yaml", type=str, default="starVLA/config/training/starvla_cotrain_oxe.yaml", help="Path to YAML config")
+    parser.add_argument("--extra_yaml", type=str, nargs="*", default=[], help="YAML overlays merged in order on top of --config_yaml (experiment arms)")
     args, clipargs = parser.parse_known_args()
 
-    # Load YAML config & Convert CLI overrides to dotlist config
+    # Load YAML config, merge arm overlays, then convert CLI overrides to dotlist config
     cfg = OmegaConf.load(args.config_yaml)
+    for extra in args.extra_yaml:
+        cfg = OmegaConf.merge(cfg, OmegaConf.load(extra))
     dotlist = normalize_dotlist_args(clipargs)  # Normalize CLI args to dotlist format
     cli_cfg = OmegaConf.from_dotlist(dotlist)
     cfg = OmegaConf.merge(cfg, cli_cfg)

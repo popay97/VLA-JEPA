@@ -1,0 +1,6 @@
+# Low-rank bottleneck on z: Linear(2048 -> 128) -> Linear(128 -> 2048).
+run_id: proj128
+framework:
+  latent_action:
+    bottleneck: lowrank
+    bottleneck_dim: 128

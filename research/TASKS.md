@@ -49,29 +49,34 @@ over 24 h uses `boost_qos_lprod` or a `--dependency=afterany` chain with resume.
 
 ## T1. Code, this week (dev loop = `boost_qos_dbg`, 30 min, starts instantly)
 
-- [ ] Resume: `accelerator.save_state`/`load_state`, `StatefulDataLoader`, persist
+Status 11 Sep: all T1 code is on `research` with 44 CPU tests passing (`research/CODE_MAP.md`).
+What remains is cluster-side: run `resume_test.sbatch` once T0 staging is done, and set
+`align_min_xyz_norm` / `align_zero_point` from `research/align_stats.py` before submitting
+`anchor_align`.
+
+- [x] (code, 11 Sep; cluster test pending via `research/slurm/resume_test.sbatch`) Resume: `accelerator.save_state`/`load_state`, `StatefulDataLoader`, persist
       `completed_steps`, save on `STOP_AND_SAVE` sentinel and every N minutes, `--requeue`
       + `--signal=B:USR1@900` in the sbatch template. Prove: 200 steps, kill at 100,
       resume, continuous LR and loss.
-- [ ] Scheduler: fix the double `lr_scheduler.step()` in `train_jevla_cotrain.py`
+- [x] Scheduler: fix the double `lr_scheduler.step()` in `train_jevla_cotrain.py`
       (single-batch `train_starvla.py` is unaffected but keep both correct).
-- [ ] Config plumbing: `wm_loss` weight from YAML instead of the hard-coded 0.1;
+- [x] Config plumbing: `wm_loss` weight from YAML instead of the hard-coded 0.1;
       `framework.latent_action.*` switches for the bottleneck arms; `framework.anchor_align.*`
       per `ANCHOR_ALIGN_INTEGRATION.md`; `framework.vj2_model.encoder_type`
       in {`vjepa2_clip`, `vjepa2_perframe`, `levjepa`}.
-- [ ] Bottleneck module on z before `action_encoder`: identity | LayerNorm | low-rank
+- [x] Bottleneck module on z before `action_encoder`: identity | LayerNorm | low-rank
       `Linear(2048,d)->Linear(d,1024)` | VIB (KL) | VQ | drop-z (predictor without action
       tokens).
-- [ ] Encoder arms: per-frame V-JEPA 2 (duplicate each frame into a 2-frame tubelet,
+- [x] Encoder arms: per-frame V-JEPA 2 (duplicate each frame into a 2-frame tubelet,
       layer-norm targets, as Meta's `forward_target`); LeVJEPA wrapper (drop CLS, 14x14
       grid, ImageNet norm, `attn_mode="block_causal"`), predictor grid follows encoder.
-- [ ] Anchor + Align port (`starVLA/model/modules/regularizers/anchor_align.py`), mask
+- [x] Anchor + Align port (`starVLA/model/modules/regularizers/anchor_align.py`), mask
       out action and embodied token positions, teacher excluded from checkpoints.
-- [ ] Diagnostics script (`research/diagnose.py`): z noise / shuffle / drop on the WM loss
+- [x] Diagnostics script (`research/diagnose.py`): z noise / shuffle / drop on the WM loss
       and action MAE; scene-cut test; linear probe and CCA from z to the action chunk;
       per-layer text-token CKA to the frozen VLM; direction-word probe. Runs on any
       checkpoint on 1 GPU.
-- [ ] Sbatch templates under `research/slurm/`: train (1 node, 24 h, requeue chain),
+- [x] Sbatch templates under `research/slurm/`: train (1 node, 24 h, requeue chain),
       train-lprod (4 days), eval, diagnose. Log to `$WORK/runs/<name>/`.
 
 ## T2. Baseline before any training (submit as soon as T0 data is staged)

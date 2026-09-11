@@ -1,0 +1,10 @@
+# Anchor (0.1) + language-action alignment (0.02). align_min_xyz_norm must be set from
+# research/align_stats.py before submission (default 0.0 keeps every sample).
+run_id: anchor_align
+framework:
+  anchor_align:
+    enable_anchor: true
+    anchor_weight: 0.1
+    teacher_source: base_vlm
+    enable_align: true
+    align_weight: 0.02

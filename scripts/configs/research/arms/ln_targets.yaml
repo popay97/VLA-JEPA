@@ -1,0 +1,6 @@
+# Baseline encoder with layer-normed target states only (isolates the normalisation part of
+# the perframe / levjepa arms).
+run_id: ln_targets
+framework:
+  vj2_model:
+    normalize_targets: true

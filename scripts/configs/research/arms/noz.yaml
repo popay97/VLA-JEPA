@@ -1,0 +1,5 @@
+# Control: the predictor receives zeros instead of the latent-action tokens.
+run_id: noz
+framework:
+  latent_action:
+    bottleneck: drop
