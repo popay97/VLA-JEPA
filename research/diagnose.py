@@ -67,6 +67,10 @@ def parse_args():
     p.add_argument("--align_min_xyz_norm", type=float, default=0.0)
     p.add_argument("--pca_dim", type=int, default=64)
     p.add_argument("--no_action_mae", action="store_true")
+    p.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE",
+                   help="config overrides applied to the checkpoint's config.yaml, e.g. "
+                        "framework.qwenvl.base_vlm=/path framework.vj2_model.base_encoder=/path")
+    p.add_argument("--dtype", default="bf16", choices=["bf16", "fp32"])
     return p.parse_args()
 
 
@@ -107,7 +111,11 @@ def main():
     rng = np.random.default_rng(args.seed)
     t0 = time.time()
 
-    model = baseframework.from_pretrained(args.ckpt).to(torch.bfloat16).to(device).eval()
+    overrides = dict(kv.split("=", 1) for kv in args.set)
+    model = baseframework.from_pretrained(args.ckpt, config_overrides=overrides)
+    model = model.to(torch.bfloat16 if args.dtype == "bf16" else torch.float32).to(device).eval()
+    if hasattr(model.target_encoder, "_mean"):
+        model.target_encoder.register_imagenet_stats()
     cfg = model.config
     ds = build_dataset(cfg, args.data_root, args.data_mix, args.seed)
     print(f"[diag] checkpoint {args.ckpt}; dataset len {len(ds)}; encoder {model.target_encoder.encoder_type}; "

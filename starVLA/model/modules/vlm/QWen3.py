@@ -55,11 +55,18 @@ class _QWen3_VL_Interface(nn.Module):
         qwenvl_config = config.framework.get("qwenvl", {})
         model_id = qwenvl_config.get("base_vlm", "Qwen/Qwen3-VL-4B-Instruct")
 
+        attn_impl = qwenvl_config.get("attn_implementation", "flash_attention_2")
+        if attn_impl == "flash_attention_2":
+            try:
+                import flash_attn  # noqa: F401
+            except ImportError:
+                print("[QWen3] flash_attn not installed, falling back to attn_implementation=sdpa")
+                attn_impl = "sdpa"
         model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_id,
-            attn_implementation="flash_attention_2",
+            attn_implementation=attn_impl,
             dtype=torch.bfloat16,
-            device_map="cuda",
+            device_map="cuda" if torch.cuda.is_available() else None,
         )
         processor = AutoProcessor.from_pretrained(model_id)
         processor.tokenizer.padding_side = "left"

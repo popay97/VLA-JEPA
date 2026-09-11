@@ -18,7 +18,10 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-from decord import VideoReader
+try:
+    from decord import VideoReader  # only needed for the VLM video datasets
+except ImportError:  # pragma: no cover
+    VideoReader = None
 import transformers
 from omegaconf import OmegaConf
 from starVLA.dataloader.qwenvl_llavajson.qwen_data_config import data_list

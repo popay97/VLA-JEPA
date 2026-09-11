@@ -57,6 +57,7 @@ class baseframework(PreTrainedModel):
     def from_pretrained(
         cls,
         pretrained_checkpoint: str,
+        config_overrides: dict = None,
         **kwargs,
     ) -> None:
         """
@@ -89,6 +90,12 @@ class baseframework(PreTrainedModel):
         # the Anchor-Align teacher is training-only and is stripped from exported weights
         if "anchor_align" in model_config.framework:
             model_config.framework.anchor_align.enable_anchor = False
+        if config_overrides:
+            # e.g. local paths for framework.qwenvl.base_vlm / framework.vj2_model.base_encoder,
+            # or framework.qwenvl.attn_implementation=sdpa on machines without flash-attn
+            from omegaconf import OmegaConf
+
+            model_config = OmegaConf.merge(model_config, OmegaConf.from_dotlist([f"{k}={v}" for k, v in config_overrides.items()]))
         # FrameworkModel = cls(config=model_config, **kwargs) # TODO find cls by config
         FrameworkModel = build_framework(cfg=model_config)
         # set for action un-norm

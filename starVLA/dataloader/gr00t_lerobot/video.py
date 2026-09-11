@@ -72,6 +72,26 @@ def get_frames_by_indices(
         raise NotImplementedError
 
 
+def _pyav_frames_by_timestamps(video_path: str, timestamps) -> np.ndarray:
+    """Decode the stream once with PyAV and return, for each requested timestamp (seconds),
+    the frame whose presentation time is closest. Returns uint8 [N, H, W, 3] RGB."""
+    timestamps = np.asarray(timestamps, dtype=np.float64).reshape(-1)
+    pts, frames = [], []
+    with av.open(video_path) as container:
+        stream = container.streams.video[0]
+        stream.thread_type = "AUTO"
+        for frame in container.decode(stream):
+            if frame.pts is None:
+                continue
+            pts.append(float(frame.pts * stream.time_base))
+            frames.append(frame.to_ndarray(format="rgb24"))
+    if not frames:
+        raise ValueError(f"no frames decoded from {video_path}")
+    pts = np.asarray(pts)
+    idx = np.abs(pts[:, None] - timestamps[None, :]).argmin(axis=0)
+    return np.stack([frames[i] for i in idx])
+
+
 def get_frames_by_timestamps(
     video_path: str,
     timestamps: list[float] | np.ndarray,
@@ -129,6 +149,9 @@ def get_frames_by_timestamps(
         frames = np.array(frames)
         return frames
     elif video_backend == "torchvision_av":
+        if not hasattr(torchvision.io, "VideoReader"):
+            # torchvision >= 0.23 dropped the VideoReader API; decode with PyAV directly
+            return _pyav_frames_by_timestamps(video_path, timestamps)
         torchvision.set_video_backend("pyav")
         loaded_frames = []
         loaded_ts = []
