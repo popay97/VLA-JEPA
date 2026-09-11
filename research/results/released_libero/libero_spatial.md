@@ -8,7 +8,7 @@ encoder `vjepa2_clip`, bottleneck `none`, 256 samples, 3 transitions
 |---|---|---|
 | z_true | 1.1338 | 0.0251 |
 | z_zeros | 1.3015 | 0.0232 |
-| z_noise | 1.5474 | 0.0737 |
+| z_noise | 1.5582 | 0.0809 |
 | z_shuffle | 1.1339 | 0.0251 |
 | z_shuffle_other_task | 1.1341 | 0.0281 |
 | z_batchmean | 1.1338 | 0.0251 |
@@ -28,7 +28,7 @@ z effect: zeros-true +0.1676, shuffle-true +0.0000, copy_last-true +0.2645
 
 - ridge R^2 (PCA 64, evr 0.76): **0.839**; full-dim 0.903; xyz only 0.872
 - CCA top-8: 0.99, 0.99, 0.99, 0.98, 0.97, 0.97, 0.94, 0.94
-- effective rank of z: 85.6
+- effective rank of z: 85.6; ||mean z|| 681.0 vs mean ||z - mean z|| 296.2; pairwise cosine z 0.819, embodied 0.214
 - embodied tokens -> actions R^2: 0.864; pre-action hidden -> actions R^2: 0.738
 
 ## Direction probe (6-way)
@@ -38,4 +38,4 @@ z effect: zeros-true +0.1676, shuffle-true +0.0000, copy_last-true +0.2645
 - from pre-action hidden: acc 0.785
 - from embodied: acc 0.812
 
-## Action MAE (normalised): 0.0362
+## Action MAE (normalised): 0.0364

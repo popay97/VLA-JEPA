@@ -154,3 +154,15 @@ line-level wiring in `ANCHOR_ALIGN_INTEGRATION.md`; provenance in `THIRD_PARTY_N
   `THIRD_PARTY_NOTICES.md`.
 - No GPU or torch on the authoring machine, so nothing in `research/` has been executed.
   First real run is Phase 0 in `EXPERIMENT_BED.md`.
+
+## 8. First empirical result (11 Sep 2026)
+
+Before any training, the released checkpoints were profiled locally (`research/RESULTS.md`).
+On both the Pretrain and the LIBERO checkpoint, the world model's prediction error is
+unchanged (to 1e-4) when the latent-action tokens are replaced by another sample's tokens or by
+the dataset mean. The predictor amplifies a shared constant component of z by 18-60x relative
+to the video states and discards the per-sample residual. The latent-action channel described
+in the paper therefore carries no sample-specific information to the world model in the
+released models; the open question is whether the world-model loss still helps the policy as a
+regulariser, and whether the leak-free / bottleneck arms in `TASKS.md` change this.
+

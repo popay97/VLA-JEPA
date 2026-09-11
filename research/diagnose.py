@@ -169,8 +169,15 @@ def main():
         z_running_n += B
         # how much of the predictor input comes from z versus the context states
         with torch.autocast("cuda", dtype=torch.bfloat16):
-            contrib["z_embed_norm"].append(model.vj_predictor.action_encoder(z).float().norm(dim=-1).mean().item())
+            enc = model.vj_predictor.action_encoder
+            contrib["z_embed_norm"].append(enc(z).float().norm(dim=-1).mean().item())
             contrib["state_embed_norm"].append(model.vj_predictor.predictor_embed(inp).float().norm(dim=-1).mean().item())
+            # decompose the predictor's view of z into the batch-constant part and the per-sample residual
+            z_dev = (z.float() - z.float().mean(0, keepdim=True)).to(z.dtype)
+            contrib.setdefault("z_embed_norm_of_batchmean", []).append(enc(z_bm).float().norm(dim=-1).mean().item())
+            contrib.setdefault("z_embed_norm_of_residual", []).append((enc(z).float() - enc(z_bm).float()).norm(dim=-1).mean().item())
+            contrib.setdefault("z_residual_norm_raw", []).append(z_dev.float().norm(dim=-1).mean().item())
+            contrib.setdefault("z_batchmean_norm_raw", []).append(z_bm.float().norm(dim=-1).mean().item())
         if B >= 2:
             perm = torch.as_tensor(permute_rows(B, rng), device=device)
             l_sh_ps = wm_loss_per_sample(z[perm], inp, gt)
@@ -327,6 +334,9 @@ def write_markdown(r, path):
     nm = wm.get("predictor_input_norms", {})
     if nm:
         lines.append(f"- predictor input norms: action_encoder(z) {nm['z_embed_norm']:.2f} vs predictor_embed(states) {nm['state_embed_norm']:.2f}")
+        if "z_embed_norm_of_residual" in nm:
+            lines.append(f"- z decomposition (raw -> after action_encoder): batch-mean part {nm['z_batchmean_norm_raw']:.1f} -> {nm['z_embed_norm_of_batchmean']:.1f}; "
+                         f"per-sample residual {nm['z_residual_norm_raw']:.1f} -> {nm['z_embed_norm_of_residual']:.1f}")
     lines.append("")
     za = r["z_to_actions"]
     lines += ["## z -> action chunk", "",

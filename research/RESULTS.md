@@ -59,6 +59,23 @@ Implication for the plan (`TASKS.md`): the `noz` control should match `base_30k`
 almost exactly and the interesting question moves to (a) whether the WM loss still helps the
 policy purely as a regulariser (base vs noz on LIBERO / LIBERO-Plus) and (b) whether leak-free
 targets (`perframe`, `levjepa`) or a real bottleneck (`proj*`, `vib32`, `ln`) force sample
-information through z. Pending: same diagnostics on `libero_10` (running) and on the Pretrain
-checkpoint; z-geometry stats (mean-vector norm vs deviation norm, pairwise cosine) added to
-`diagnose.py` for the next run.
+information through z. 
+
+**Pretrain checkpoint** (`Pretrain/checkpoints/VLA-JEPA-pretrain.pt`, DROID + SSv2 co-training,
+evaluated on the same 256 `libero_spatial` samples, i.e. out of distribution;
+`research/results/released_libero/pretrain_ckpt_libero_spatial.md`): true z 1.3864, shuffle
+1.3864, other-task 1.3871, batch-mean 1.3863, global-mean 1.3864, zeros 1.4580, copy-last
+1.3983, noise 1.4724, scene-cut 1.7180; paired |diff| 0.0006. Norm ratio inside the predictor
+1,164 vs 63 (18x). Geometry of z: ||mean z|| 501 vs mean ||z - mean z|| 115, pairwise cosine
+between samples 0.94 (embodied tokens 0.56). R² z -> LIBERO actions 0.45 (embodied 0.40).
+
+So the constant-z regime is established during pretraining, not by the LIBERO fine-tune, and
+on these clips the pretrained predictor beats copy-last by only 0.012. LIBERO fine-tuning makes
+the per-sample part of z relatively *larger* (||mean|| 681 vs deviation 296, cosine 0.82) and
+the predictor's amplification of z 3x stronger (43k vs 691), yet the world model still reads
+none of it: the action encoder projects z onto its mean direction and the residual is lost.
+
+Open: base vs `noz` on LIBERO / LIBERO-Plus (does the loss help as a regulariser?), and whether
+leak-free targets or a real bottleneck put sample information into the channel (`perframe`,
+`levjepa`, `proj*`, `vib32`, `ln`). A base-VLM CKA pass (needs a second 4.4 GB model, so not
+on the 8 GB laptop) is still pending for the representation-drift question.
