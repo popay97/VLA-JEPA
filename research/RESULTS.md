@@ -49,6 +49,12 @@ Reading:
    sequence carries.
 4. Action MAE (normalised) 0.036 confirms the checkpoint and data pipeline are healthy.
 
+**Replication on `libero_10`** (256 samples, `research/results/released_libero/libero_10.md`):
+true z 1.1886, shuffle 1.1885, other-task shuffle 1.1877, batch-mean 1.1886, global-mean 1.1885,
+zeros 1.3289, copy-last 1.3774, noise 1.5535, scene-cut 1.8740; paired |diff| 0.0001; norm ratio
+43,108 vs 691. R² z -> actions 0.91 (embodied 0.89), direction probe 0.75 (embodied 0.79). Same
+picture on the long-horizon suite.
+
 Implication for the plan (`TASKS.md`): the `noz` control should match `base_30k` on the WM loss
 almost exactly and the interesting question moves to (a) whether the WM loss still helps the
 policy purely as a regulariser (base vs noz on LIBERO / LIBERO-Plus) and (b) whether leak-free
