@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VLA-JEPA Research Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ink:#1B1F24; --paper:#FFFFFF; --accent:#0F6E6A; --accent-tint:#E6F2F1;
+    --muted:#5B6470; --rule:#D5DADF; --warn:#9A4A16; --warn-tint:#FBF1E8;
+    --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+    --sans:"IBM Plex Sans","Segoe UI",Helvetica,Arial,sans-serif;
+    --mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
+  }
+  @page{ size:A4; margin:20mm 20mm 22mm 20mm; }
+  html,body{ margin:0; background:var(--paper); color:var(--ink); }
+  body{ font-family:var(--sans); font-size:10.5pt; line-height:1.5; }
+  .page{ max-width:170mm; margin:0 auto; }
+  h1,h2,h3{ font-family:var(--serif); font-weight:600; text-wrap:balance; color:var(--ink); margin:0; }
+  h1{ font-size:26pt; line-height:1.15; letter-spacing:-0.01em; }
+  h2{ font-size:15pt; line-height:1.25; margin-top:22pt; margin-bottom:8pt; padding-top:8pt; border-top:1.5px solid var(--ink); break-after:avoid; }
+  h3{ font-size:11.5pt; font-weight:600; margin-top:14pt; margin-bottom:4pt; break-after:avoid; }
+  p{ margin:0 0 8pt 0; max-width:68ch; }
+  ul,ol{ margin:0 0 8pt 0; padding-left:1.4em; max-width:68ch; }
+  li{ margin-bottom:3pt; }
+  li::marker{ color:var(--accent); }
+  strong{ font-weight:600; }
+  .eyebrow{ font-family:var(--sans); font-size:8.5pt; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  .titleblock{ padding-bottom:14pt; border-bottom:1.5px solid var(--ink); margin-bottom:16pt; }
+  .titleblock .sub{ font-family:var(--serif); font-size:13pt; color:var(--muted); margin-top:8pt; max-width:60ch; }
+  .meta{ display:grid; grid-template-columns:auto 1fr; gap:2pt 14pt; font-size:9pt; color:var(--muted); margin-top:12pt; }
+  .meta dt{ font-weight:600; color:var(--ink); }
+  .meta dd{ margin:0; }
+  .summary{ background:var(--accent-tint); border-left:3px solid var(--accent); padding:10pt 14pt; margin:0 0 12pt 0; break-inside:avoid; }
+  .summary p:last-child, .summary ul:last-child{ margin-bottom:0; }
+  .callout{ background:var(--warn-tint); border-left:3px solid var(--warn); padding:8pt 12pt; margin:8pt 0 10pt; break-inside:avoid; }
+  .callout .eyebrow{ color:var(--warn); }
+  .callout p:last-child{ margin-bottom:0; }
+  .note{ font-size:9pt; color:var(--muted); }
+  table{ border-collapse:collapse; width:100%; font-size:9.5pt; margin:6pt 0 10pt; font-variant-numeric:tabular-nums; break-inside:avoid; }
+  caption{ text-align:left; font-family:var(--sans); font-size:8.5pt; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:0 0 4pt; }
+  th,td{ text-align:left; padding:4pt 8pt 4pt 0; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{ font-weight:600; border-bottom:1.5px solid var(--ink); }
+  td.num,th.num{ text-align:right; font-family:var(--mono); font-size:9pt; padding-right:16pt; white-space:nowrap; }
+  td.num:last-child,th.num:last-child{ padding-right:0; }
+  tr.hi td{ background:var(--accent-tint); }
+  .figure{ margin:10pt 0 12pt; break-inside:avoid; }
+  .figure .cap{ font-size:9pt; color:var(--muted); margin-top:4pt; max-width:68ch; }
+  .arch{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8pt; font-size:9pt; }
+  .arch .box{ border:1px solid var(--rule); padding:8pt 10pt; }
+  .arch .box b{ display:block; font-family:var(--serif); font-size:10.5pt; margin-bottom:3pt; }
+  .arch .box.on{ border-color:var(--accent); background:var(--accent-tint); }
+  .arch .box.off{ border-style:dashed; color:var(--muted); }
+  .term{ font-family:var(--mono); font-size:9pt; }
+  .wave{ display:grid; grid-template-columns:110pt 1fr; gap:4pt 12pt; margin:6pt 0 10pt; font-size:9.5pt; }
+  .wave dt{ font-weight:600; }
+  .wave dd{ margin:0; max-width:64ch; }
+  .glossary dt{ font-weight:600; margin-top:5pt; }
+  .glossary dd{ margin:0 0 0 0; max-width:66ch; }
+  .pb{ break-before:page; }
+  .foot{ margin-top:18pt; padding-top:8pt; border-top:1px solid var(--rule); font-size:8.5pt; color:var(--muted); break-inside:avoid; }
+  .glossary{ break-inside:auto; }
+  .glossary > div{ break-inside:avoid; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="titleblock">
+  <div class="eyebrow">Research brief · Robotics learning</div>
+  <h1 style="margin-top:6pt">VLA-JEPA: what it is, what we found inside it, and what we will test</h1>
+  <p class="sub">A plain-language account of a widely adopted 2026 robot-learning architecture, the defect our diagnostics uncovered in its released models, and the experiment program running on EuroHPC through October.</p>
+  <dl class="meta">
+    <dt>Prepared by</dt><dd>Vuk Stajkić, 14 September 2026</dd>
+    <dt>Subject paper</dt><dd>VLA-JEPA, arXiv 2602.10098 (February 2026), open code and checkpoints</dd>
+    <dt>Our fork</dt><dd>github.com/popay97/VLA-JEPA, branch <span class="term">research</span></dd>
+    <dt>Compute</dt><dd>EuroHPC Leonardo, project AIFAC_P02_954, 5,000 A100 GPU-hours, valid until 24 October 2026</dd>
+  </dl>
+</header>
+
+<section class="summary">
+  <div class="eyebrow">Summary</div>
+  <ul>
+    <li><strong>VLA-JEPA</strong> is a robot control model that adds a "world model" to a vision-language model. Its central claim is that forcing the model to predict how a video will evolve, through a small set of <em>latent action tokens</em>, teaches it useful things about physics and makes it a better robot controller, including from unlabeled human video.</li>
+    <li>It is one of the most cited robot-learning papers of 2026, has open weights, and is used as a baseline by other groups. That makes it a good place to find a result that matters.</li>
+    <li><strong>We found that in the released models the latent action tokens carry no sample-specific information.</strong> Replace one robot episode's tokens with another episode's, or with the dataset average, and the world model's prediction error changes by 0.0001. The channel the paper describes is, in practice, a constant. We also confirmed the video encoder leaks future frames into the prediction targets, so the "leak-free" prediction task is not leak-free.</li>
+    <li>This cost zero GPU-hours: measured on a laptop against the authors' own published checkpoints, replicated on two datasets and two checkpoints.</li>
+    <li>The follow-up is a controlled experiment program: fixes that give the channel a reason to carry information (a centering normalization, a causal encoder, a direct path from world model to action head), each measured with the same diagnostics plus robot success rates in and out of distribution. Wave 1 runs in September, wave 2 in October, about 2,700 of our 5,000 GPU-hours.</li>
+  </ul>
+</section>
+
+<h2>1. The landscape in plain words</h2>
+<p>A robot policy is a program that looks at camera images and a text instruction ("put the bowl in the drawer") and outputs the next few motor commands. Since 2023 the field has built these policies on top of large <strong>vision-language models</strong>, the same family as the models behind chat assistants that can see images. The result is called a <strong>VLA</strong>: vision, language, action. The pretrained model brings in knowledge about objects and language; a small "action head" is bolted on and trained on robot demonstrations.</p>
+<p>The bottleneck is data. Robot demonstrations are expensive: a person has to teleoperate the robot, and every dataset is tied to one robot body. Videos of humans doing things are effectively free and unlimited. The question the field is trying to answer is <strong>how to learn about the physical world from video, then hand that knowledge to a robot</strong>.</p>
+<p>One answer is the <strong>world model</strong>: a component that predicts what will happen next. If a model can predict how a scene evolves when a hand moves, it has learned something about physics, contact and cause and effect, and that knowledge may help it act. The <strong>JEPA</strong> family (Joint Embedding Predictive Architecture, associated with Yann LeCun's group at Meta) does this prediction not in pixels but in a compressed feature space, which avoids wasting capacity on irrelevant detail such as texture and lighting. V-JEPA 2 is Meta's video version of this idea and is the encoder VLA-JEPA builds on.</p>
+
+<h2>2. What VLA-JEPA is</h2>
+<p>VLA-JEPA glues three pretrained pieces together and adds one new idea.</p>
+<div class="figure">
+  <div class="arch">
+    <div class="box on"><b>Vision-language model</b>Qwen3-VL-2B, 2 billion parameters. Sees one camera frame and the instruction. Emits two groups of special tokens: 32 <em>embodied</em> tokens that drive the action head, and 24 <em>latent action</em> tokens (called z) that drive the world model.</div>
+    <div class="box on"><b>World model</b>A frozen V-JEPA 2 video encoder turns 8 video frames into 4 feature "states". A 12-layer predictor must predict state k+1 from state k <em>and</em> the latent action tokens z. Trained on robot video and on unlabeled human video.</div>
+    <div class="box on"><b>Action head</b>A diffusion-style transformer that turns the 32 embodied tokens into a chunk of 7 motor commands. This is the only part that runs at deployment.</div>
+  </div>
+  <div class="cap">The three components. At deployment the robot uses only the left and right boxes. The world model exists to shape the vision-language model during training, and the paper's thesis is that it does so through z.</div>
+</div>
+<p>The new idea is the middle box. The claim: because the world model can only learn about the future through z, the vision-language model is <em>forced</em> to put "what is about to happen" into those tokens. That should make z a compressed representation of action, learnable from any video, robot or human, and it should make the vision-language model a better controller. The paper reports strong results on the standard simulation benchmarks and a real robot, and it is one of the most cited robot-learning papers of 2026.</p>
+<p>This is a clean, testable mechanism. Either the world model reads z or it does not. That is what we checked.</p>
+
+<h2>3. What we found</h2>
+<p>We wrote a diagnostic tool that takes the authors' released checkpoints and asks a simple question: <strong>does the world model's prediction get worse if we corrupt z?</strong> If z carries information, replacing one episode's tokens with another episode's should hurt. We ran nine controlled corruptions on 256 robot episodes from the LIBERO benchmark, on an 8 GB laptop GPU.</p>
+
+<table>
+  <caption>World-model prediction error under controlled corruption of z (released LIBERO checkpoint, lower is better)</caption>
+  <thead><tr><th>What we fed the world model as z</th><th class="num">Error</th><th>Reading</th></tr></thead>
+  <tbody>
+    <tr class="hi"><td>The true tokens for this episode</td><td class="num">1.1338</td><td>baseline</td></tr>
+    <tr class="hi"><td>Another episode's tokens, same task</td><td class="num">1.1339</td><td>no change</td></tr>
+    <tr class="hi"><td>Another episode's tokens, different task</td><td class="num">1.1341</td><td>no change</td></tr>
+    <tr class="hi"><td>The average tokens over the whole dataset</td><td class="num">1.1340</td><td>no change</td></tr>
+    <tr><td>The tokens in scrambled order</td><td class="num">1.1624</td><td>small change: it learned which slot is which</td></tr>
+    <tr><td>All zeros</td><td class="num">1.3015</td><td>hurts: it expects <em>something</em> there</td></tr>
+    <tr><td>No prediction at all, copy the current state</td><td class="num">1.3983</td><td>the predictor does do useful work from the video states</td></tr>
+    <tr><td>Random noise of matching size</td><td class="num">1.5474</td><td>hurts</td></tr>
+    <tr><td>Video from an unrelated clip</td><td class="num">1.7811</td><td>hurts badly: the video states are what it reads</td></tr>
+  </tbody>
+</table>
+
+<p>The first four rows are the finding. Swapping in a different episode's tokens, even from a different task, changes the error by one part in ten thousand. The world model treats z as a fixed bias, not as a message. It gets everything it uses from the video states, which it is handed directly. The result replicates exactly on a second benchmark suite and on the authors' pretraining checkpoint, so it is established during pretraining, not introduced by fine-tuning.</p>
+
+<h3>Why it happens</h3>
+<p>Looking inside the tokens explains it. Every episode's z is dominated by one huge shared component; the part that differs between episodes is about 6% of its size. The layer that feeds z into the predictor amplifies the shared part 37 times and the episode-specific part 10 times, so by the time the predictor's normalization runs, the message is a rounding error on top of a constant. The gradient that would teach the vision-language model to put information into z is therefore near zero. <strong>The training signal the paper is built around is inert as a learning signal to the vision-language model.</strong></p>
+<p>A second defect compounds it. V-JEPA 2 looks at all 8 frames at once when it encodes each state, so the "current" state already contains the future. The predictor never needed z, because its input already told it the answer. Meta's own robot variant of V-JEPA encodes frames one at a time to avoid exactly this; VLA-JEPA dropped that when porting the code.</p>
+
+<div class="callout">
+  <div class="eyebrow">Why nobody noticed</div>
+  <p>Training loss goes down anyway, because the predictor learns from the video states. The standard benchmark (LIBERO) is saturated: nineteen published models sit within three points of 99% success, so it cannot distinguish a working mechanism from a placebo. And the paper's ablations remove whole components rather than testing whether a component is read. None of this required the authors to make an error a reviewer would catch.</p>
+</div>
+
+<h3>What we can and cannot say yet</h3>
+<ul>
+  <li>We <strong>can</strong> say the mechanism claimed in the paper does not operate in the released models. This is measured, replicated and documented in our fork.</li>
+  <li>We <strong>cannot</strong> yet say the world-model loss does nothing for the robot. It may still help as a regularizer through other routes, and the paper's benchmark gains may be real. Separating these is the first job of the experiment program.</li>
+  <li>We have <strong>not</strong> yet trained a corrected model. The value of the finding rests on whether a small fix turns the channel on and improves the robot, especially outside the training distribution where robot policies fail today.</li>
+</ul>
+
+<h2>4. Why this matters</h2>
+<p><strong>Scientifically</strong>, a widely cited result whose central mechanism is inert is worth publishing on its own, with the diagnostic tool that finds it. The stronger version is a corrected model: if giving z a reason to carry information improves robustness, that reframes how the field should train world-model-augmented policies. Three papers from the last three months, read in full for this work, independently support the direction: one shows that unconstrained latent tokens in a similar model collapse the same way and must be anchored by an auxiliary loss; one shows that a recurrent latent is only used when consecutive training tasks make reusing it the easiest path; and a 6,400-hour controlled study of world-action models finds that the one coupling direction VLA-JEPA lacks, the action head reading the world model, is the one that carries the gain, while the direction VLA-JEPA relies on is worth a fifth of a point.</p>
+<p><strong>For the company</strong>, the practical question is how to train robot policies when demonstrations are scarce, which is our situation with the UMI data. A world-model term that actually transmits information from unlabeled video to the controller is the cheapest lever available. We are building the measurement tooling and the training infrastructure to know whether it works, on architecture that is open and that we now understand at the line level.</p>
+
+<h2>5. The experiment program</h2>
+<p>All experiments are fine-tunes on the LIBERO benchmark starting from the authors' pretraining checkpoint, so every variant sees identical data and compute and differs in exactly one design choice. Every trained model gets the same three measurements: the z-corruption diagnostics above, success rate on LIBERO, and success rate on LIBERO-Plus, a version with camera, lighting, layout and noise perturbations that tests generalization. LIBERO-Plus is the primary discriminator, because that is where the literature says world modeling should show up.</p>
+
+<h3>Stage 0, done</h3>
+<p>Diagnostic tool built and run on both released checkpoints and two datasets. Resumable training infrastructure, all experiment variants, cluster job templates and 44 automated tests are on the research branch. Findings recorded in the repository.</p>
+
+<h3>Stage 1, laptop, this week, no cluster time</h3>
+<ul>
+  <li>Measure the encoder leak directly: perturb future frames, measure how much the "current" state changes.</li>
+  <li>Measure the gradient the world model sends back through the shared and episode-specific parts of z, to confirm the inert-signal explanation.</li>
+  <li>Implement and unit-test the centering fix: subtract the running mean of z before it enters the predictor, so the shared component cannot drown the message.</li>
+</ul>
+
+<h3>Wave 1, September, Leonardo</h3>
+<p>Twelve to fourteen short fine-tunes of 30,000 steps, one node each, identical data and seed. Each job launches its own diagnostics and evaluation when it finishes.</p>
+<dl class="wave">
+  <dt>Calibration</dt><dd>The paper's recipe at 30k steps and at the full 120k steps, to check that short runs rank variants the same way long runs do.</dd>
+  <dt>The key control</dt><dd><span class="term">noz</span>: the world model with no latent tokens at all. Our prediction is that it matches the baseline on every metric. If the paper's mechanism worked, it should not.</dd>
+  <dt>Make z carry information</dt><dd><span class="term">center</span> (the normalization fix), <span class="term">ln</span>, projections to 8, 32 and 128 dimensions, a variational bottleneck. These test which constraint forces information through the channel.</dd>
+  <dt>Remove the leak</dt><dd><span class="term">perframe</span> (encode each frame alone, Meta's method) and <span class="term">levjepa</span> (a newer encoder that is causal by construction).</dd>
+  <dt>Protect the backbone</dt><dd><span class="term">anchor</span> and <span class="term">anchor_align</span>: keep the vision-language model close to its pretrained state so the world-model signal has nowhere to go except z.</dd>
+</dl>
+
+<h3>Wave 2, October, Leonardo</h3>
+<dl class="wave">
+  <dt>Combine and confirm</dt><dd>Best bottleneck with best encoder, with and without anchoring, three seeds each. Two full-length 120k runs of the top two for paper-comparable numbers.</dd>
+  <dt>Generalization</dt><dd>LIBERO-Plus on the top four checkpoints and the released baseline.</dd>
+  <dt>From the recent literature</dt><dd>A direct path from the world model into the action head (the coupling the controlled study found decisive). A short past-only visual memory for the policy, grounded by a loss that predicts past motion. A gating test for a recurrent denoising action head: if more sampling steps do not move success on the released model, that direction is closed cheaply.</dd>
+  <dt>Token layout</dt><dd>Seven transitions with one token each versus the paper's three transitions with eight tokens, matching the seven-step action chunk.</dd>
+</dl>
+
+<h3>How results will be read</h3>
+<table>
+  <caption>Decision rules agreed in advance</caption>
+  <thead><tr><th>If we see</th><th>It means</th></tr></thead>
+  <tbody>
+    <tr><td><span class="term">noz</span> matches baseline on all three metrics</td><td>The paper's mechanism contributes nothing; the world-model loss is at best a regularizer. Publishable with the diagnostics alone.</td></tr>
+    <tr><td>A bottleneck arm opens the shuffle gap (corrupting z hurts) but success is unchanged</td><td>z can be made informative, but the robot does not use it. Motivates the world-to-action path in wave 2.</td></tr>
+    <tr><td>An arm opens the gap <em>and</em> improves LIBERO-Plus</td><td>The headline result: a corrected VLA-JEPA that generalizes better. Proceed to seeds and full-length runs.</td></tr>
+    <tr><td>Leak-free encoders change z-dependence more than bottlenecks do</td><td>The defect is primarily the encoder, which is the simplest fix to recommend to the field.</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Resources, timeline, risks</h2>
+<table>
+  <caption>Compute plan against the 5,000 GPU-hour allocation</caption>
+  <thead><tr><th>Item</th><th class="num">GPU-hours</th></tr></thead>
+  <tbody>
+    <tr><td>About 20 short fine-tunes (30k steps)</td><td class="num">1,100</td></tr>
+    <tr><td>4 full fine-tunes (120k steps)</td><td class="num">840</td></tr>
+    <tr><td>24 LIBERO evaluations</td><td class="num">240</td></tr>
+    <tr><td>8 LIBERO-Plus evaluations</td><td class="num">400</td></tr>
+    <tr><td>Diagnostics on every checkpoint</td><td class="num">100</td></tr>
+    <tr><td><strong>Planned total</strong></td><td class="num"><strong>2,700</strong></td></tr>
+    <tr><td>Reserve for seeds, reruns and wave-2 additions</td><td class="num">2,300</td></tr>
+  </tbody>
+</table>
+<p>Leonardo queue wait is currently about nine days per job, so many one-node jobs are submitted in parallel rather than one large job. Jobs checkpoint and resume automatically. A request to CINECA for an extension past 24 October is drafted.</p>
+
+<h3>Risks and mitigations</h3>
+<ul>
+  <li><strong>Queue slippage.</strong> If wave 1 does not start by late September, short runs move to rented GPUs (about two days per arm on two consumer cards) and Leonardo is reserved for the full-length runs.</li>
+  <li><strong>Benchmark saturation.</strong> LIBERO alone cannot separate arms; LIBERO-Plus is budgeted for every candidate that matters. This is why the evaluation budget is as large as the training budget.</li>
+  <li><strong>Short runs mis-ranking arms.</strong> The 30k versus 120k calibration pair in wave 1 exists to catch this before wave 2 commits.</li>
+  <li><strong>Licensing.</strong> One candidate encoder is released under a non-commercial license. It is used for the scientific comparison only; the per-frame fix uses the original, permissively licensed encoder.</li>
+  <li><strong>Office hardware.</strong> Our two DGX Spark boxes are already running production language-model services and have 10 to 25 GB of headroom, enough for correctness tests, not training. Nothing in this program depends on them.</li>
+</ul>
+
+<h2>7. Deliverables and open decisions</h2>
+<ul>
+  <li>A paper-style write-up: the diagnostic finding, the corrected variants, and the generalization results, with the open fork and the diagnostic tool so others can check their own models.</li>
+  <li>Internal: a trained, characterized policy stack we understand end to end, and a measurement habit (does the model <em>read</em> this signal?) that transfers to our own models.</li>
+  <li>Open decisions: the CINECA extension request goes out this week; a rented-GPU fallback for short runs, on the order of a few hundred euros per arm, is needed only if the Leonardo queue slips; smoke tests on the office boxes stay within their existing memory headroom and touch no running service.</li>
+</ul>
+
+<h2>Glossary</h2>
+<dl class="glossary">
+  <dt>VLA (vision-language-action model)</dt><dd>A robot policy built on a pretrained vision-language model, with an action head that outputs motor commands.</dd>
+  <dt>World model</dt><dd>A component that predicts the next state of the environment. Used here during training only, to shape what the policy learns.</dd>
+  <dt>JEPA</dt><dd>Joint Embedding Predictive Architecture. Predicts future observations in a learned feature space rather than in pixels.</dd>
+  <dt>Latent action tokens (z)</dt><dd>The 24 tokens the vision-language model emits for the world model. The paper's thesis is that they encode the action about to happen.</dd>
+  <dt>Checkpoint</dt><dd>A saved set of trained model weights. The authors released theirs, which is what we measured.</dd>
+  <dt>Fine-tune</dt><dd>Continue training a pretrained model on a specific dataset; here, LIBERO robot demonstrations.</dd>
+  <dt>LIBERO / LIBERO-Plus</dt><dd>The standard simulated manipulation benchmark (four task suites, success rate in percent) and its perturbed variant that tests robustness to camera, lighting, layout and noise changes.</dd>
+  <dt>Bottleneck</dt><dd>A deliberate constraint on a signal (fewer dimensions, normalization, noise) that forces it to carry only what matters.</dd>
+  <dt>Leak</dt><dd>When the input to a prediction task already contains the answer, so the model can succeed without learning anything about the future.</dd>
+  <dt>GPU-hour</dt><dd>One graphics processor for one hour. Our allocation is 5,000 A100 GPU-hours; a typical short experiment costs about 55.</dd>
+</dl>
+
+<div class="foot">Sources for every number in this brief are in the fork under <span class="term">research/RESULTS.md</span>, <span class="term">research/WHY_THIS_FORK.md</span> and <span class="term">research/TASKS.md</span>. Papers cited were read in full: VLA-JEPA (2602.10098), MotionVLA (2606.08288), Thinking with Looped Flows (2609.11801), OpenWAM (2609.07398).</div>
+
+</div>
+</body>
+</html>

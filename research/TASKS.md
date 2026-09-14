@@ -79,6 +79,14 @@ What remains is cluster-side: run `resume_test.sbatch` once T0 staging is done, 
 - [x] Sbatch templates under `research/slurm/`: train (1 node, 24 h, requeue chain),
       train-lprod (4 days), eval, diagnose. Log to `$WORK/runs/<name>/`.
 
+## T1b. Stage 1 on the laptop (done 14 Sep, no cluster time)
+
+- [x] Encoder leak measured directly (`research/leak_and_gradient.py`): future-frame swap changes
+      s_0 of the clip encoder as much as another sample would (rel 1.35); per-frame encoder 0.000.
+- [x] World-model gradient to z decomposed: 1/1,600 of the action gradient per token; loss flat
+      under residual x2 (1e-5) and shared x1.1 (5e-7). RESULTS.md 2026-09-14.
+- [x] `center` / `center_ln` bottleneck kinds + tests + arms `center`, `center_ln`, `perframe_center`.
+
 ## T2. Baseline before any training (submit as soon as T0 data is staged)
 
 - [ ] Diagnostics on the released LIBERO checkpoint: this is the headline number for
@@ -94,8 +102,8 @@ seed. Names are config file names under `scripts/configs/research/`.
 
 - [ ] `base_30k` (paper recipe, shortened) and `base_120k` (paper recipe exact) to
       calibrate whether 30k ranks arms the same way 120k does.
-- [ ] `noz` (drop-z control), `ln`, `proj8`, `proj32`, `proj128`
-- [ ] `perframe` (V-JEPA 2 per-frame, leak-free), `levjepa`
+- [ ] `noz` (drop-z control), `center`, `center_ln`, `ln`, `proj8`, `proj32`, `proj128`
+- [ ] `perframe` (V-JEPA 2 per-frame, leak-free), `perframe_center`, `levjepa`
 - [ ] `anchor` (lambda 0.1), `anchor_align`
 - [ ] Every job ends by launching its own diagnostics job and LIBERO eval job via
       `--dependency=afterok`.

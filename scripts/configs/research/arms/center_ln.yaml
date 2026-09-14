@@ -1,0 +1,13 @@
+# Centering, then LayerNorm with learnable affine and a learnable scalar gain. The gain starts
+# at 15 so the per-token norm (about sqrt(2048) * 15 = 680) matches the predictor's embedded
+# video states (about 690 on the released checkpoint): z enters the predictor at the same
+# scale as the context it is compared against.
+run_id: center_ln
+framework:
+  latent_action:
+    bottleneck: center_ln
+    center_momentum: 0.99
+    center_per_slot: true
+    center_num_tokens: 24
+    center_gain: 15.0
+    center_learnable_gain: true

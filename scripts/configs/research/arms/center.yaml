@@ -1,0 +1,13 @@
+# Centering bottleneck: z - EMA mean (per token slot, stop-gradient). Removes the shared
+# component that dominates z in the released checkpoints so the per-sample residual is what
+# the predictor's action_encoder sees (RESULTS.md 2026-09-11 decomposition: constant 1186 ->
+# 43,676 through action_encoder, residual 289 -> 2,897). gain 1: the residual keeps its raw scale.
+run_id: center
+framework:
+  latent_action:
+    bottleneck: center
+    center_momentum: 0.99
+    center_per_slot: true
+    center_num_tokens: 24
+    center_gain: 1.0
+    center_learnable_gain: false

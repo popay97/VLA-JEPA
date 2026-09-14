@@ -3,6 +3,60 @@
 Newest first. Raw outputs under `research/results/`. Every entry names the checkpoint, the
 data, the command, and what was concluded, so a conclusion can be re-derived later.
 
+## 2026-09-14 — the encoder leak is total, and the world-model gradient to the VLM is 1/1600 of the action gradient
+
+Checkpoint: released `LIBERO/checkpoints/VLA-JEPA-LIBERO.pt`. Data: 64 `libero_spatial` samples
+(val-mode, seed 0). Machine: RTX 4070 laptop, bf16. Command: `research/leak_and_gradient.py
+--num_batches 16 --batch_size 4` (raw: `research/results/released_libero/leak_gradient.{json,md}`).
+
+**Encoder leak** (relative change of each V-JEPA 2 state when frames are perturbed; the scale is
+the per-state deviation across samples, so about 1.4 means "as different as another sample"):
+
+| encoder | perturbation | s_0 | s_1 | s_2 | s_3 |
+|---|---|---|---|---|---|
+| clip (upstream) | future frames from another sample | 1.35 (cos 0.62) | 1.64 | 1.63 | 1.62 |
+| clip (upstream) | future frames frozen at frame 1 | 1.35 (cos 0.63) | 1.41 | 1.49 | 1.56 |
+| clip (upstream) | past frames from another sample | 1.62 | 1.14 | 0.92 | 0.97 |
+| per-frame (same weights) | future frames from another sample | **0.000** | 0.000 | 1.64 | 1.64 |
+| per-frame (same weights) | past frames from another sample | 1.64 | 1.64 | **0.000** | 0.000 |
+
+(per-frame has 8 states; only the first four columns are shown, s_2.. are the perturbed ones.)
+Replacing the frames *after* the present changes the "current" state s_0 as much as swapping the
+whole sample. Even freezing the future (no motion after frame 1) moves s_0 by the same amount.
+The predictor's context therefore contains the answer to the prediction task, and the L1 target
+s_{k+1} contains frames beyond it as well. The per-frame encoder with identical weights has
+exactly zero future leak and exactly zero past leak into later states, as it must.
+
+**Gradient decomposition** (weighted world-model loss, `wm_loss_weight` 0.1, d L / d z per token;
+z = m + r with m the per-slot batch mean and r the per-sample residual):
+
+| quantity | value |
+|---|---|
+| ‖∂L_wm/∂z‖ per latent token | 7.6e-8 |
+| ‖∂L_action/∂embodied‖ per embodied token | 1.7e-4 |
+| ratio world-model : action gradient | **6.4e-4** (about 1 : 1,600) |
+| \|⟨g, m⟩\| (loss change for a 100% rescale of the shared part) | 7.5e-7 |
+| \|⟨g, r⟩\| (loss change for a 100% rescale of the residual) | 1.6e-7 |
+| finite difference, residual ×2 | 1.3e-5 |
+| finite difference, residual ×0 | 2.3e-7 |
+| finite difference, shared ×1.1 | 5.5e-7 |
+| \|cos(g, r)\| / \|cos(g, m)\| | 0.015 / 0.012 |
+| ‖m‖ / ‖r‖ per token | 1164 / 282 |
+
+Reading: the world-model loss is locally flat in every direction of z. A doubling of the
+per-sample residual moves the weighted loss by 1e-5 (1e-4 unweighted, matching the shuffle
+result of 11 Sep); a 10% change of the shared component moves it by 5e-7. The gradient is not
+aligned with either the shared or the residual direction (cosines 0.01), i.e. what little there
+is points nowhere useful. Per token, the VLM receives 1,600 times more gradient from the action
+head than from the world model. The world-model term is therefore inert as a learning signal to
+the VLM on this checkpoint, which is the mechanism behind the constant-z finding. Caveat: the
+predictor runs in bf16 autocast, so the absolute gradient values carry bf16 noise; the
+finite-difference rows are independent of that and agree.
+
+Implementation landed with this entry: `center` / `center_ln` bottleneck kinds
+(`latent_bottleneck.py`, EMA per-slot mean, stop-gradient, optional LayerNorm + gain), 7 unit
+tests on a synthetic constant-dominated z, arm overlays `center`, `center_ln`, `perframe_center`.
+
 ## 2026-09-11 — released LIBERO checkpoint: the world model does not read z
 
 Checkpoint: `ginwind/VLA-JEPA` `LIBERO/checkpoints/VLA-JEPA-LIBERO.pt` (paper's LIBERO model,

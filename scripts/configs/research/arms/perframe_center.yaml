@@ -1,0 +1,14 @@
+# Leak-free per-frame V-JEPA 2 targets + centering bottleneck. 8 states -> 7 transitions ->
+# 56 latent tokens, so the EMA buffer has 56 slots.
+run_id: perframe_center
+framework:
+  vj2_model:
+    encoder_type: vjepa2_perframe
+    normalize_targets: true
+    state_stride: 1
+  latent_action:
+    bottleneck: center
+    center_momentum: 0.99
+    center_per_slot: true
+    center_num_tokens: 56
+    center_gain: 1.0
