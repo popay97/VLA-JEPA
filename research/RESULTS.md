@@ -3,6 +3,50 @@
 Newest first. Raw outputs under `research/results/`. Every entry names the checkpoint, the
 data, the command, and what was concluded, so a conclusion can be re-derived later.
 
+## 2026-09-14 — LeVJEPA: zero future leak, but 90% of its target energy sits in one shared direction that LayerNorm does not remove
+
+Encoders only (no VLM), 64 `libero_spatial` samples, fp32, `research/target_geometry.py`
+(raw: `research/results/released_libero/target_geometry.{json,md}`; per-encoder mean vectors in
+`research/results/target_means/`). Same leak protocol as below, now on three encoders; plus the
+geometry of the raw per-view target tokens x in R^1024.
+
+Leak (relative change of s_0 when the frames after the present are swapped / frozen): clip
+1.35 / 1.35, per-frame V-JEPA 2 **0.000 / 0.000**, LeVJEPA **0.000 / 0.000**. LeVJEPA's
+block-causal attention holds empirically; swapping the past changes its later states by a
+decaying amount (1.64 at s_0 down to 0.75 at s_7), as a causal encoder should.
+
+Geometry of the targets (Vuk's observation from a few weeks earlier, now quantified):
+
+| quantity | V-JEPA 2 clip | V-JEPA 2 per-frame | LeVJEPA |
+|---|---|---|---|
+| energy fraction of the mean direction, raw | 0.28 | 0.30 | **0.90** |
+| pairwise cosine between tokens of different samples, raw | 0.27 | 0.30 | **0.90** |
+| ‖mean‖ / mean deviation, raw | 0.62 | 0.65 | **2.99** |
+| massive channels (\|mean\| > 10 × median std) | 1 | 1 | **12** |
+| top channel \|mean\| / median std | 16 | 18 | **74** |
+| energy fraction of the mean direction, after per-token LayerNorm | 0.28 | 0.30 | **0.90** |
+| energy fraction after dataset centering, then LayerNorm | 0.0001 | 0.0003 | 0.002 |
+| pairwise cosine after centering + LayerNorm | 0.00 | 0.00 | 0.00 |
+| PC1 variance fraction of the centered tokens | 0.10 | 0.12 | 0.10 |
+
+Reading: LeVJEPA's token features are one large shared vector plus a small per-sample part,
+the same shape as z in the released VLA-JEPA (cosine 0.94 there). Per-token LayerNorm, which
+is what `normalize_targets` (and V-JEPA2-AC) does, cannot remove it: LN normalises each token's
+own mean and scale across channels, not a direction shared by all tokens. Subtracting the
+per-channel dataset mean removes it completely, and the remaining variance is well spread
+(PC1 10%, effective rank about 110-145 for all three). V-JEPA 2 has the same structure at a
+third of the strength, driven by a single massive channel.
+
+Consequence for the arms: LeVJEPA targets fed raw (or LN-only) into `predictor_embed` would
+re-create the drowning we measured on z, on the *state* side this time, and the L1 targets
+would be dominated by a learnable constant. `TargetEncoder` now takes `center_targets_path`
+(per-channel mean, subtracted before LN); the `levjepa`, `levjepa_center` and
+`perframe_center` arms use the LIBERO means. LeVJEPA revision pinned to
+`e831a034…` in the arms. Scale note: copy-last L1 on LeVJEPA is 0.16 versus 0.22 for the mean
+predictor, so copy-last is a strong baseline there; on V-JEPA 2 clip it is 2.10 versus 1.72,
+i.e. consecutive clip states differ more than samples do (the temporal positional embedding
+moves every state), which is why `copy_last` beat nothing on 11 Sep.
+
 ## 2026-09-14 — the encoder leak is total, and the world-model gradient to the VLM is 1/1600 of the action gradient
 
 Checkpoint: released `LIBERO/checkpoints/VLA-JEPA-LIBERO.pt`. Data: 64 `libero_spatial` samples

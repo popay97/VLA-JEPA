@@ -18,7 +18,10 @@ naming its origin; this file is the index.
 
 - Repository: https://github.com/MLO-lab/LeVJEPA
 - Paper: arXiv:2608.27395
-- Used as: HF checkpoint `galilai-group/LeVJEPA-VideoMix-Large` via `trust_remote_code`.
+- Used as: HF checkpoint `galilai-group/LeVJEPA-VideoMix-Large` via `trust_remote_code`,
+  pinned to revision `e831a0347737fcaa660b39c57d41c109de399845` (2026-09-14) in the arm configs.
+  The GitHub repo (MIT, training code with its own Lightning/Hydra stack) is not vendored or
+  submoduled: inference needs only the two modeling files that ship inside the HF snapshot.
   Non-commercial weight license; research use only.
 
 ## V-JEPA 2 / V-JEPA 2.1 / V-JEPA2-AC (Meta)

@@ -1,0 +1,17 @@
+# LeVJEPA targets (block-causal, centered + layer-normed) AND the centering bottleneck on z.
+# Both constant-dominated channels are centered: the latent tokens and the targets.
+run_id: levjepa_center
+framework:
+  vj2_model:
+    encoder_type: levjepa
+    base_encoder: /leonardo_scratch/fast/AIFAC_P02_954/models/LeVJEPA-VideoMix-Large
+    revision: e831a0347737fcaa660b39c57d41c109de399845
+    normalize_targets: true
+    center_targets_path: research/results/target_means/target_mean_levjepa_libero_spatial.pt
+    state_stride: 2
+  latent_action:
+    bottleneck: center
+    center_momentum: 0.99
+    center_per_slot: true
+    center_num_tokens: 24
+    center_gain: 1.0

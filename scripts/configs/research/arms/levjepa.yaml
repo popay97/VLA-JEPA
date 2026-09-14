@@ -1,11 +1,19 @@
 # LeVJEPA ViT-L/16 (block-causal, tubelet 1, 224 px, 14x14 grid). stride 2 -> 4 states /
 # 3 transitions, same token layout as the baseline. The 14x14 grid only changes the sincos
 # positional table and the attention mask, so the pretrained predictor weights still load.
-# Weights are CC BY-NC 4.0 (see THIRD_PARTY_NOTICES.md).
+# Weights are CC BY-NC 4.0 (see THIRD_PARTY_NOTICES.md); revision pinned to the HF commit
+# measured on 2026-09-14.
+#
+# Targets are centered by the per-channel LIBERO mean before LayerNorm: LeVJEPA tokens put
+# 90% of their energy into one shared direction (pairwise cosine 0.895, 12 massive channels)
+# and LayerNorm alone leaves that untouched (RESULTS.md 2026-09-14). The mean file is tiny
+# and committed under research/results/target_means/.
 run_id: levjepa
 framework:
   vj2_model:
     encoder_type: levjepa
     base_encoder: /leonardo_scratch/fast/AIFAC_P02_954/models/LeVJEPA-VideoMix-Large
+    revision: e831a0347737fcaa660b39c57d41c109de399845
     normalize_targets: true
+    center_targets_path: research/results/target_means/target_mean_levjepa_libero_spatial.pt
     state_stride: 2

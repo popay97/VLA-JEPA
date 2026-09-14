@@ -120,3 +120,25 @@ def test_normalize_targets_per_view():
 def test_rejects_unknown_type():
     with pytest.raises(ValueError):
         TargetEncoder(_cfg(encoder_type="bogus"), model=FakeVJEPA2(), processor=FakeProcessor())
+
+
+def test_center_targets_subtracts_dataset_mean_before_layernorm(tmp_path):
+    mean = torch.arange(6, dtype=torch.float32)  # per-channel dataset mean, D = 6
+    p = tmp_path / "mean.pt"
+    torch.save({"mean": mean}, p)
+    enc = TargetEncoder(_cfg(center_targets_path=str(p)), model=FakeVJEPA2(), processor=FakeProcessor())
+    ref = TargetEncoder(_cfg(), model=FakeVJEPA2(), processor=FakeProcessor())
+    vid = _videos()
+    out, base = enc.encode(vid), ref.encode(vid)
+    assert torch.allclose(out.view(2, 4, 4, 2, 6), base.view(2, 4, 4, 2, 6) - mean, atol=1e-5)
+    # with normalize_targets the constant-per-token features are no longer constant after centering
+    enc2 = TargetEncoder(_cfg(center_targets_path=str(p), normalize_targets=True), model=FakeVJEPA2(), processor=FakeProcessor())
+    out2 = enc2.encode(vid)
+    assert out2.abs().sum() > 0 and torch.allclose(out2.view(-1, 6).mean(-1), torch.zeros(out2.numel() // 6), atol=1e-4)
+
+
+def test_center_targets_rejects_wrong_channel_count(tmp_path):
+    p = tmp_path / "mean.pt"
+    torch.save({"mean": torch.zeros(5)}, p)
+    with pytest.raises(ValueError):
+        TargetEncoder(_cfg(center_targets_path=str(p)), model=FakeVJEPA2(), processor=FakeProcessor())

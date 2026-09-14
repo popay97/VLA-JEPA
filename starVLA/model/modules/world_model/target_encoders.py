@@ -14,8 +14,12 @@ Three ways to turn a clip of T frames per view into S latent states:
                      ImageNet normalisation, CLS token dropped.
 
 `encode` returns states as [B, S * tokens_per_state, V * D] (views concatenated along the
-feature axis, exactly the layout the predictor expects), optionally layer-normed per view
-(`normalize_targets`, as in V-JEPA2-AC).
+feature axis, exactly the layout the predictor expects), optionally centered per view by a
+precomputed per-channel dataset mean (`center_targets_path`, a .pt with key "mean" [D], produced
+by `research/target_geometry.py`) and then layer-normed per view (`normalize_targets`, as in
+V-JEPA2-AC). Centering matters: on LIBERO the LeVJEPA tokens put 90% of their energy into one
+shared direction and LayerNorm alone does not remove it (RESULTS.md, 14 Sep 2026).
+`revision` pins the HF checkpoint commit.
 """
 from typing import Optional, Tuple
 
@@ -53,11 +57,21 @@ class TargetEncoder:
         self.normalize_targets = bool(_cfg_get(vj_cfg, "normalize_targets", False))
         self.state_stride = int(_cfg_get(vj_cfg, "state_stride", 1))
         self.num_frames = int(_cfg_get(vj_cfg, "num_frames", 8))
+        self.revision = _cfg_get(vj_cfg, "revision", None)
+        self.center_targets_path = _cfg_get(vj_cfg, "center_targets_path", None)
+        self.target_mean: Optional[torch.Tensor] = None
+        if self.center_targets_path:
+            blob = torch.load(self.center_targets_path, map_location="cpu")
+            self.target_mean = (blob["mean"] if isinstance(blob, dict) else blob).float().flatten()
 
         if model is None:
             model, processor = self._load(self.path)
         self.model = model
         self.processor = processor
+        if self.target_mean is not None:
+            D = int(getattr(model.config, "hidden_size", getattr(model.config, "embed_dim", self.target_mean.numel())))
+            if self.target_mean.numel() != D:
+                raise ValueError(f"center_targets_path mean has {self.target_mean.numel()} channels, encoder has {D}")
 
         if self.encoder_type.startswith("vjepa2"):
             c = model.config
@@ -81,13 +95,14 @@ class TargetEncoder:
     def _load(self, path: str):
         from transformers import AutoModel
 
+        kw = {"revision": self.revision} if self.revision else {}
         if self.encoder_type.startswith("vjepa2"):
             from transformers import AutoVideoProcessor
 
-            model = AutoModel.from_pretrained(path)
-            processor = AutoVideoProcessor.from_pretrained(path)
+            model = AutoModel.from_pretrained(path, **kw)
+            processor = AutoVideoProcessor.from_pretrained(path, **kw)
             return model, processor
-        model = AutoModel.from_pretrained(path, trust_remote_code=True)
+        model = AutoModel.from_pretrained(path, trust_remote_code=True, **kw)
         if getattr(model.config, "attn_mode", "block_causal") != "block_causal":
             raise ValueError("LeVJEPA weights were trained block-causal; refusing to run with attn_mode="
                              f"{model.config.attn_mode!r}")
@@ -131,6 +146,8 @@ class TargetEncoder:
             feats = self._encode_vjepa2_perframe(clips)
         else:
             feats = self._encode_levjepa(clips)
+        if self.target_mean is not None:
+            feats = feats.float() - self.target_mean.to(feats.device)
         if self.normalize_targets:
             feats = F.layer_norm(feats.float(), (feats.shape[-1],))
         S, tok, D = feats.shape[1:]

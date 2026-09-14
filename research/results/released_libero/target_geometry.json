@@ -1,0 +1,337 @@
+{
+  "num_samples": 64,
+  "data_mix": "libero_spatial",
+  "encoders": {
+    "clip": {
+      "encoder_type": "vjepa2_clip",
+      "num_states_for_8_frames": 4,
+      "leak": {
+        "future_swap": {
+          "rel_change_per_state": [
+            1.3490722179412842,
+            1.6405048370361328,
+            1.6253591775894165,
+            1.6198594570159912
+          ],
+          "cosine_per_state": [
+            0.623469352722168,
+            0.4566047191619873,
+            0.4720156788825989,
+            0.4455209970474243
+          ]
+        },
+        "future_frozen": {
+          "rel_change_per_state": [
+            1.354013442993164,
+            1.4149916172027588,
+            1.4885536432266235,
+            1.5622855424880981
+          ],
+          "cosine_per_state": [
+            0.6312719583511353,
+            0.5986109375953674,
+            0.5745140314102173,
+            0.5067977905273438
+          ]
+        },
+        "past_swap": {
+          "rel_change_per_state": [
+            1.623127818107605,
+            1.1419405937194824,
+            0.917838454246521,
+            0.9654728174209595
+          ],
+          "cosine_per_state": [
+            0.4550584554672241,
+            0.7364009618759155,
+            0.8309798240661621,
+            0.801306962966919
+          ]
+        }
+      },
+      "geometry": {
+        "num_tokens_total": 131072,
+        "num_tokens_sampled": 16384,
+        "raw": {
+          "mean_vector_norm": 49.33918380737305,
+          "deviation_norm_mean": 79.7341537475586,
+          "mean_to_deviation_ratio": 0.6187961054127796,
+          "energy_fraction_of_mean_direction": 0.2758013606071472,
+          "pairwise_cosine_cross_sample": 0.27324220538139343,
+          "pc1_variance_fraction_after_centering": 0.10227160900831223,
+          "effective_rank_after_centering": 144.8788299560547,
+          "massive_channels": 1,
+          "top_channel": 407,
+          "top_channel_abs_mean_over_median_std": 16.39443588256836
+        },
+        "after_layernorm": {
+          "mean_vector_norm": 16.82769203186035,
+          "deviation_norm_mean": 27.184158325195312,
+          "mean_to_deviation_ratio": 0.6190256777699755,
+          "energy_fraction_of_mean_direction": 0.27653467655181885,
+          "pairwise_cosine_cross_sample": 0.27319827675819397,
+          "pc1_variance_fraction_after_centering": 0.09945294260978699,
+          "effective_rank_after_centering": 145.89633178710938,
+          "massive_channels": 1,
+          "top_channel": 407,
+          "top_channel_abs_mean_over_median_std": 16.641368865966797
+        },
+        "after_centering_then_layernorm": {
+          "mean_vector_norm": 0.38781115412712097,
+          "deviation_norm_mean": 31.997560501098633,
+          "mean_to_deviation_ratio": 0.01212002252839886,
+          "energy_fraction_of_mean_direction": 0.0001468728150939569,
+          "pairwise_cosine_cross_sample": -0.0045789266005158424,
+          "pc1_variance_fraction_after_centering": 0.10196840763092041,
+          "effective_rank_after_centering": 143.5624542236328,
+          "massive_channels": 0,
+          "top_channel": 407,
+          "top_channel_abs_mean_over_median_std": 0.17533467710018158
+        },
+        "scale_raw": {
+          "copy_last_l1": 2.096524566411972,
+          "mean_abs_deviation_l1": 1.7199795246124268,
+          "mean_abs_value_l1": 1.8850442171096802
+        }
+      },
+      "mean_path": "C:/Users/vukst/vlajepa_local/results/released_libero\\target_mean_clip_libero_spatial.pt"
+    },
+    "perframe": {
+      "encoder_type": "vjepa2_perframe",
+      "num_states_for_8_frames": 8,
+      "leak": {
+        "future_swap": {
+          "rel_change_per_state": [
+            0.0,
+            0.0,
+            1.6396011114120483,
+            1.638893961906433,
+            1.639588475227356,
+            1.6395655870437622,
+            1.6375477313995361,
+            1.6374971866607666
+          ],
+          "cosine_per_state": [
+            1.0,
+            1.0,
+            0.46882402896881104,
+            0.46986937522888184,
+            0.4692399799823761,
+            0.4683123528957367,
+            0.47212859988212585,
+            0.47128763794898987
+          ]
+        },
+        "future_frozen": {
+          "rel_change_per_state": [
+            0.0,
+            0.0,
+            1.0824193954467773,
+            1.2165635824203491,
+            1.258232593536377,
+            1.2845962047576904,
+            1.313525915145874,
+            1.3242371082305908
+          ],
+          "cosine_per_state": [
+            1.0,
+            1.0,
+            0.7588788270950317,
+            0.6986051797866821,
+            0.677186906337738,
+            0.6626533269882202,
+            0.6492701768875122,
+            0.6430404186248779
+          ]
+        },
+        "past_swap": {
+          "rel_change_per_state": [
+            1.6407407522201538,
+            1.6406563520431519,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "cosine_per_state": [
+            0.46860021352767944,
+            0.46744656562805176,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      },
+      "geometry": {
+        "num_tokens_total": 262144,
+        "num_tokens_sampled": 16384,
+        "raw": {
+          "mean_vector_norm": 50.86897277832031,
+          "deviation_norm_mean": 77.91179656982422,
+          "mean_to_deviation_ratio": 0.6529046308504998,
+          "energy_fraction_of_mean_direction": 0.29761290550231934,
+          "pairwise_cosine_cross_sample": 0.29605358839035034,
+          "pc1_variance_fraction_after_centering": 0.12106643617153168,
+          "effective_rank_after_centering": 130.29989624023438,
+          "massive_channels": 1,
+          "top_channel": 407,
+          "top_channel_abs_mean_over_median_std": 17.980209350585938
+        },
+        "after_layernorm": {
+          "mean_vector_norm": 17.504323959350586,
+          "deviation_norm_mean": 26.760080337524414,
+          "mean_to_deviation_ratio": 0.6541207551908986,
+          "energy_fraction_of_mean_direction": 0.299220472574234,
+          "pairwise_cosine_cross_sample": 0.29598647356033325,
+          "pc1_variance_fraction_after_centering": 0.11774832010269165,
+          "effective_rank_after_centering": 131.835205078125,
+          "massive_channels": 1,
+          "top_channel": 407,
+          "top_channel_abs_mean_over_median_std": 18.312469482421875
+        },
+        "after_centering_then_layernorm": {
+          "mean_vector_norm": 0.5122050046920776,
+          "deviation_norm_mean": 31.99570083618164,
+          "mean_to_deviation_ratio": 0.0160085571281771,
+          "energy_fraction_of_mean_direction": 0.0002562055306043476,
+          "pairwise_cosine_cross_sample": -0.004359722603112459,
+          "pc1_variance_fraction_after_centering": 0.12096507847309113,
+          "effective_rank_after_centering": 130.0735626220703,
+          "massive_channels": 0,
+          "top_channel": 407,
+          "top_channel_abs_mean_over_median_std": 0.18239521980285645
+        },
+        "scale_raw": {
+          "copy_last_l1": 1.2315254136919975,
+          "mean_abs_deviation_l1": 1.6826425790786743,
+          "mean_abs_value_l1": 1.856925368309021
+        }
+      },
+      "mean_path": "C:/Users/vukst/vlajepa_local/results/released_libero\\target_mean_perframe_libero_spatial.pt"
+    },
+    "levjepa": {
+      "encoder_type": "levjepa",
+      "num_states_for_8_frames": 8,
+      "leak": {
+        "future_swap": {
+          "rel_change_per_state": [
+            0.0,
+            0.0,
+            1.808726191520691,
+            1.7626036405563354,
+            1.8094981908798218,
+            1.7841839790344238,
+            1.7352943420410156,
+            1.7018376588821411
+          ],
+          "cosine_per_state": [
+            1.0,
+            1.0,
+            0.9261937737464905,
+            0.9268397092819214,
+            0.9170128107070923,
+            0.9169249534606934,
+            0.9164125323295593,
+            0.916435718536377
+          ]
+        },
+        "future_frozen": {
+          "rel_change_per_state": [
+            0.0,
+            0.0,
+            1.3498139381408691,
+            2.2892229557037354,
+            2.376077651977539,
+            2.2915635108947754,
+            2.029576301574707,
+            1.8824243545532227
+          ],
+          "cosine_per_state": [
+            1.0,
+            1.0,
+            0.9567660093307495,
+            0.8764140605926514,
+            0.858061671257019,
+            0.8644619584083557,
+            0.8869421482086182,
+            0.8994818329811096
+          ]
+        },
+        "past_swap": {
+          "rel_change_per_state": [
+            1.6444971561431885,
+            1.6244995594024658,
+            1.5574930906295776,
+            1.3062959909439087,
+            1.1861693859100342,
+            1.0144662857055664,
+            0.8579363226890564,
+            0.7519636154174805
+          ],
+          "cosine_per_state": [
+            0.9756906032562256,
+            0.9407318830490112,
+            0.945175290107727,
+            0.9597705602645874,
+            0.96461421251297,
+            0.9730706810951233,
+            0.9792195558547974,
+            0.9834268689155579
+          ]
+        }
+      },
+      "geometry": {
+        "num_tokens_total": 200704,
+        "num_tokens_sampled": 16384,
+        "raw": {
+          "mean_vector_norm": 28.187801361083984,
+          "deviation_norm_mean": 9.440863609313965,
+          "mean_to_deviation_ratio": 2.985722760921476,
+          "energy_fraction_of_mean_direction": 0.8952310681343079,
+          "pairwise_cosine_cross_sample": 0.8949787020683289,
+          "pc1_variance_fraction_after_centering": 0.10208296030759811,
+          "effective_rank_after_centering": 110.56415557861328,
+          "massive_channels": 12,
+          "top_channel": 537,
+          "top_channel_abs_mean_over_median_std": 74.46380615234375
+        },
+        "after_layernorm": {
+          "mean_vector_norm": 30.283653259277344,
+          "deviation_norm_mean": 10.136626243591309,
+          "mean_to_deviation_ratio": 2.9875475855118574,
+          "energy_fraction_of_mean_direction": 0.8956153988838196,
+          "pairwise_cosine_cross_sample": 0.8949767351150513,
+          "pc1_variance_fraction_after_centering": 0.10289789736270905,
+          "effective_rank_after_centering": 111.04077911376953,
+          "massive_channels": 12,
+          "top_channel": 537,
+          "top_channel_abs_mean_over_median_std": 74.2649154663086
+        },
+        "after_centering_then_layernorm": {
+          "mean_vector_norm": 1.3107593059539795,
+          "deviation_norm_mean": 31.969669342041016,
+          "mean_to_deviation_ratio": 0.04100008955145164,
+          "energy_fraction_of_mean_direction": 0.00167803093791008,
+          "pairwise_cosine_cross_sample": -0.004788896534591913,
+          "pc1_variance_fraction_after_centering": 0.09279146045446396,
+          "effective_rank_after_centering": 125.71420288085938,
+          "massive_channels": 0,
+          "top_channel": 537,
+          "top_channel_abs_mean_over_median_std": 0.396769255399704
+        },
+        "scale_raw": {
+          "copy_last_l1": 0.1552865905687213,
+          "mean_abs_deviation_l1": 0.22218464314937592,
+          "mean_abs_value_l1": 0.3736533522605896
+        }
+      },
+      "mean_path": "C:/Users/vukst/vlajepa_local/results/released_libero\\target_mean_levjepa_libero_spatial.pt"
+    }
+  },
+  "seconds": 354.5130817890167
+}

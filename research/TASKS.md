@@ -86,6 +86,9 @@ What remains is cluster-side: run `resume_test.sbatch` once T0 staging is done, 
 - [x] World-model gradient to z decomposed: 1/1,600 of the action gradient per token; loss flat
       under residual x2 (1e-5) and shared x1.1 (5e-7). RESULTS.md 2026-09-14.
 - [x] `center` / `center_ln` bottleneck kinds + tests + arms `center`, `center_ln`, `perframe_center`.
+- [x] Target geometry on clip / per-frame / LeVJEPA (`research/target_geometry.py`): LeVJEPA zero
+      leak but 90% energy in one shared direction, LN does not remove it, centering does.
+      `center_targets_path` on TargetEncoder, LIBERO means committed, `levjepa_center` arm.
 
 ## T2. Baseline before any training (submit as soon as T0 data is staged)
 
@@ -103,7 +106,7 @@ seed. Names are config file names under `scripts/configs/research/`.
 - [ ] `base_30k` (paper recipe, shortened) and `base_120k` (paper recipe exact) to
       calibrate whether 30k ranks arms the same way 120k does.
 - [ ] `noz` (drop-z control), `center`, `center_ln`, `ln`, `proj8`, `proj32`, `proj128`
-- [ ] `perframe` (V-JEPA 2 per-frame, leak-free), `perframe_center`, `levjepa`
+- [ ] `perframe` (V-JEPA 2 per-frame, leak-free), `perframe_center`, `levjepa`, `levjepa_center`
 - [ ] `anchor` (lambda 0.1), `anchor_align`
 - [ ] Every job ends by launching its own diagnostics job and LIBERO eval job via
       `--dependency=afterok`.
